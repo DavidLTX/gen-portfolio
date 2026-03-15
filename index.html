@@ -1,0 +1,1076 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Gen Portfolio — Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js">
+  // TWRR vs SPX Chart
+  const twrrLabels = ["Feb '25","Mar '25","Apr '25","May '25","Jun '25","Jul '25","Aug '25","Sep '25","Oct '25","Nov '25","Dec '25","Jan '26","Feb '26","Mar '26"];
+  const upro_pct  = [0.00,-11.97,-49.07,-24.49,-10.84,0.52,3.54,12.12,22.56,24.19,26.65,27.42,22.13,10.59];
+  const vuaa_pct  = [0.00,-3.52,-18.54,-5.93,-0.12,4.76,6.02,9.12,13.06,14.03,15.35,16.14,15.84,11.98];
+  const spx_pct   = [0.00,-1.40,-7.07,-7.78,-2.11,2.75,4.97,6.98,10.75,13.27,13.41,13.35,14.90,10.46];
+
+  // Portfolio TWRR annotation points (confirmed from statements)
+  const twrrDots = Array(14).fill(null);
+  twrrDots[11] = 23.33;   // Jan '26 = Year 1 end
+
+  new Chart(document.getElementById('twrrChart'), {
+    type: 'line',
+    data: {
+      labels: twrrLabels,
+      datasets: [
+        {
+          label: 'UPRO',
+          data: upro_pct,
+          borderColor: '#38bdf8',
+          backgroundColor: 'rgba(56,189,248,0.06)',
+          borderWidth: 2.5,
+          pointRadius: 3,
+          pointBackgroundColor: '#38bdf8',
+          pointHoverRadius: 6,
+          tension: 0.3,
+          fill: false,
+        },
+        {
+          label: 'VUAA',
+          data: vuaa_pct,
+          borderColor: '#a855f7',
+          backgroundColor: 'rgba(168,85,247,0.06)',
+          borderWidth: 2.5,
+          pointRadius: 3,
+          pointBackgroundColor: '#a855f7',
+          pointHoverRadius: 6,
+          tension: 0.3,
+          fill: false,
+        },
+        {
+          label: 'S&P 500',
+          data: spx_pct,
+          borderColor: '#fbbf24',
+          backgroundColor: 'rgba(251,191,36,0.04)',
+          borderWidth: 2,
+          borderDash: [5,4],
+          pointRadius: 2,
+          pointBackgroundColor: '#fbbf24',
+          pointHoverRadius: 5,
+          tension: 0.3,
+          fill: false,
+        },
+        {
+          label: 'Portfolio TWRR (confirmed)',
+          data: twrrDots,
+          borderColor: 'transparent',
+          backgroundColor: '#4ade80',
+          borderWidth: 0,
+          pointRadius: (ctx) => ctx.raw !== null ? 8 : 0,
+          pointStyle: 'circle',
+          pointBackgroundColor: '#4ade80',
+          pointBorderColor: '#020817',
+          pointBorderWidth: 2,
+          pointHoverRadius: 10,
+          showLine: false,
+          type: 'scatter',
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: 'rgba(6,13,26,0.96)',
+          borderColor: 'rgba(255,255,255,0.1)',
+          borderWidth: 1,
+          padding: 12,
+          titleColor: '#e2e8f0',
+          bodyColor: '#94a3b8',
+          callbacks: {
+            label: ctx => {
+              if (ctx.raw === null) return null;
+              const sign = ctx.raw >= 0 ? '+' : '';
+              return ` ${ctx.dataset.label}: ${sign}${ctx.raw.toFixed(2)}%`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: 'rgba(255,255,255,0.04)' },
+          ticks: { color: '#475569' }
+        },
+        y: {
+          grid: { color: 'rgba(255,255,255,0.04)' },
+          ticks: {
+            color: '#475569',
+            callback: v => (v >= 0 ? '+' : '') + v + '%'
+          },
+        }
+      }
+    }
+  });
+
+</script>
+
+  <style>
+    :root {
+      --bg:           #020817;
+      --bg-soft:      #060d1a;
+      --bg-card:      rgba(10, 18, 36, 0.85);
+      --border:       rgba(255,255,255,0.07);
+      --border-glow:  rgba(56,189,248,0.22);
+      --text:         #f1f5f9;
+      --muted:        #8b9fba;
+      --accent:       #38bdf8;
+      --accent2:      #818cf8;
+      --green:        #4ade80;
+      --red:          #f87171;
+      --amber:        #fbbf24;
+      --purple:       #c084fc;
+      --font:         'Inter', system-ui, sans-serif;
+      --r-xl:         20px;
+      --r-lg:         14px;
+      --r-md:         10px;
+      --r-sm:         6px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 14px;
+      line-height: 1.55;
+      min-height: 100vh;
+      padding: 20px;
+      background-image:
+        radial-gradient(ellipse 80% 40% at 50% -10%, rgba(56,189,248,0.08) 0, transparent 60%),
+        radial-gradient(ellipse 50% 30% at 90% 20%, rgba(129,140,248,0.06) 0, transparent 50%);
+    }
+
+    .wrap { max-width: 1360px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+
+    /* ── HEADER ── */
+    .header {
+      border-radius: var(--r-xl);
+      border: 1px solid var(--border-glow);
+      background: linear-gradient(135deg, rgba(6,13,26,0.98) 0%, rgba(10,18,40,0.96) 100%);
+      padding: 26px 28px 22px;
+      display: flex; justify-content: space-between; align-items: flex-start; gap: 20px;
+      position: relative; overflow: hidden;
+      box-shadow: 0 0 0 1px rgba(56,189,248,0.08), 0 24px 48px rgba(0,0,0,0.6);
+    }
+    .header::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse 60% 100% at 100% 50%, rgba(56,189,248,0.07), transparent 60%),
+                  radial-gradient(ellipse 40% 80% at 0% 50%, rgba(129,140,248,0.05), transparent 55%);
+      pointer-events: none;
+    }
+    .header-left { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 8px; }
+    .header-eyebrow { font-size: 10px; text-transform: uppercase; letter-spacing: 0.18em; color: var(--accent); font-weight: 600; }
+    .header-title { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; display: flex; align-items: center; gap: 10px; }
+    .header-title-tag {
+      font-size: 10px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase;
+      padding: 3px 9px; border-radius: 999px;
+      border: 1px solid rgba(56,189,248,0.45); color: var(--accent); background: rgba(56,189,248,0.07);
+    }
+    .header-desc { font-size: 13px; color: #8b9fba; max-width: 520px; }
+    .header-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+
+    .badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 500;
+      padding: 4px 11px; border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.1); color: var(--muted); background: rgba(255,255,255,0.03);
+    }
+    .badge-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .badge-blue  { border-color: rgba(56,189,248,0.4);  color: #bae6fd; background: rgba(56,189,248,0.06); }
+    .badge-green { border-color: rgba(74,222,128,0.4);  color: #bbf7d0; background: rgba(74,222,128,0.06); }
+    .badge-live  { animation: pulsedot 2s ease-in-out infinite; }
+    @keyframes pulsedot { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
+
+    .header-right {
+      position: relative; z-index: 1; display: flex; flex-direction: column;
+      align-items: flex-end; gap: 6px; font-size: 11px; color: var(--muted); flex-shrink: 0;
+    }
+    .header-nav-pill {
+      font-size: 10px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase;
+      padding: 5px 14px; border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04);
+      color: var(--muted); cursor: default;
+    }
+    .header-nav-pill.active { border-color: rgba(56,189,248,0.55); color: var(--accent); background: rgba(56,189,248,0.08); }
+
+    /* ── KPI ── */
+    .kpi-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 14px; }
+    @media(max-width:900px){ .kpi-grid { grid-template-columns: repeat(2,1fr); } }
+    @media(max-width:520px){ .kpi-grid { grid-template-columns: 1fr; } }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      padding: 16px 18px 14px;
+      position: relative; overflow: hidden;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      transition: border-color 0.2s;
+    }
+    .card:hover { border-color: rgba(56,189,248,0.2); }
+    .card-glow-green::before { content:''; position:absolute; top:0;left:0;right:0; height:1px; background: linear-gradient(90deg,transparent,rgba(74,222,128,0.5),transparent); }
+    .card-glow-blue::before  { content:''; position:absolute; top:0;left:0;right:0; height:1px; background: linear-gradient(90deg,transparent,rgba(56,189,248,0.5),transparent); }
+    .card-glow-red::before   { content:''; position:absolute; top:0;left:0;right:0; height:1px; background: linear-gradient(90deg,transparent,rgba(248,113,113,0.5),transparent); }
+    .card-glow-amber::before { content:''; position:absolute; top:0;left:0;right:0; height:1px; background: linear-gradient(90deg,transparent,rgba(251,191,36,0.5),transparent); }
+
+    .kpi-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.16em; color: var(--muted); font-weight: 700; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+    .kpi-sub-pill { font-size: 10px; padding: 1px 7px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.1); color: var(--muted); background: rgba(255,255,255,0.03); text-transform: uppercase; letter-spacing: 0.1em; }
+    .kpi-value { font-size: 26px; font-weight: 700; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 8px; }
+    .kpi-footer { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .chip {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 11px; font-weight: 500; padding: 3px 9px; border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .chip-green  { border-color: rgba(74,222,128,0.4);  color: #86efac; background: rgba(74,222,128,0.08); }
+    .chip-red    { border-color: rgba(248,113,113,0.4); color: #fca5a5; background: rgba(248,113,113,0.08); }
+    .chip-blue   { border-color: rgba(56,189,248,0.4);  color: #7dd3fc; background: rgba(56,189,248,0.08); }
+    .chip-amber  { border-color: rgba(251,191,36,0.4);  color: #fcd34d; background: rgba(251,191,36,0.08); }
+    .chip-neutral{ border-color: rgba(255,255,255,0.1); color: var(--muted); background: rgba(255,255,255,0.03); }
+    .chip-dot    { width: 5px; height: 5px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+    .kpi-footer-note { font-size: 11px; color: var(--muted); }
+
+    .col-green  { color: var(--green); }
+    .col-red    { color: var(--red); }
+    .col-muted  { color: var(--muted); }
+    .col-accent { color: var(--accent); }
+    .col-amber  { color: var(--amber); }
+
+    /* ── SECTION HEADING ── */
+    .section-heading { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 10px; }
+    .section-heading-left { display: flex; flex-direction: column; gap: 2px; }
+    .section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.18em; color: #a0b4cc; }
+    .section-subtitle { font-size: 12px; color: #6b83a0; }
+
+    /* ── TABLE WRAPPER ── */
+    .tbl-wrap { border-radius: var(--r-lg); border: 1px solid var(--border); background: rgba(6,13,26,0.92); overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.45); }
+    .tbl-head { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--border); background: rgba(10,18,36,0.9); }
+    .tbl-head-left { display: flex; flex-direction: column; gap: 1px; }
+    .tbl-head-title { font-size: 13px; font-weight: 700; }
+    .tbl-head-sub   { font-size: 11px; color: var(--muted); }
+
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    thead { background: rgba(6,13,26,0.98); }
+    th, td { padding: 8px 14px; text-align: right; white-space: nowrap; }
+    th:first-child, td:first-child { text-align: left; padding-left: 16px; }
+    th:last-child,  td:last-child  { padding-right: 16px; }
+    th { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #8b9fba; border-bottom: 1px solid var(--border); }
+    tbody tr:hover { background: rgba(56,189,248,0.04); }
+    tr + tr td { border-top: 1px solid rgba(255,255,255,0.03); }
+    .total-row td { border-top: 1px solid rgba(255,255,255,0.1) !important; color: var(--muted); font-weight: 600; }
+    .yr2-row td   { background: rgba(56,189,248,0.04); }
+    .yr2-row:hover td { background: rgba(56,189,248,0.08) !important; }
+    .yr2-label { font-size: 9px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); padding: 2px 6px; border-radius: 4px; background: rgba(56,189,248,0.1); margin-left: 6px; }
+
+    /* ── GRID LAYOUTS ── */
+    .main-grid { display: grid; grid-template-columns: minmax(0,1.5fr) minmax(0,1fr); gap: 20px; }
+    @media(max-width:1000px){ .main-grid { grid-template-columns: 1fr; } }
+    .vstack { display: flex; flex-direction: column; gap: 16px; }
+    .pnl-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    @media(max-width:640px){ .pnl-grid { grid-template-columns: 1fr; } }
+
+    /* ── CHART CARDS ── */
+    .chart-card { background: rgba(6,13,26,0.92); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.4); }
+    .chart-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }
+    .chart-card-title { font-size: 14px; font-weight: 700; margin-bottom: 3px; }
+    .chart-card-sub   { font-size: 11px; color: var(--muted); }
+    canvas { display: block; }
+
+    /* ── P&L SECTION ── */
+    .pnl-card { border-radius: var(--r-lg); border: 1px solid var(--border); padding: 16px 18px; position: relative; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.4); }
+    .pnl-fixed    { background: rgba(6,13,26,0.95); border-color: rgba(255,255,255,0.09); }
+    .pnl-floating { background: rgba(6,13,26,0.95); border-color: rgba(56,189,248,0.22); }
+    .pnl-floating::before { content: ''; position: absolute; top:0;left:0;right:0; height:1px; background: linear-gradient(90deg,transparent,rgba(56,189,248,0.6),transparent); }
+    .pnl-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.18em; color: #a0b4cc; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
+    .lock-badge { font-size: 9px; padding: 2px 7px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.1); color: var(--muted); background: rgba(255,255,255,0.03); text-transform: uppercase; letter-spacing: 0.08em; }
+    .pnl-headline { font-size: 28px; font-weight: 700; letter-spacing: -0.04em; margin-bottom: 4px; }
+    .pnl-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-top: 1px solid rgba(255,255,255,0.05); font-size: 12px; }
+    .pnl-row-label { color: var(--muted); }
+    .pnl-note { font-size: 11px; color: var(--muted); margin-top: 8px; padding: 7px 10px; border-radius: var(--r-sm); background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); }
+
+    /* ── ALLOC BARS ── */
+    .alloc-row { display: flex; align-items: center; gap: 10px; padding: 5px 0; }
+    .alloc-row + .alloc-row { border-top: 1px solid rgba(255,255,255,0.04); }
+    .alloc-label { display: flex; align-items: center; gap: 6px; width: 60px; flex-shrink: 0; font-size: 12px; font-weight: 600; }
+    .alloc-dot   { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .alloc-bar-track { flex: 1; height: 5px; border-radius: 999px; background: rgba(255,255,255,0.06); overflow: hidden; }
+    .alloc-bar-fill  { height: 100%; border-radius: 999px; }
+    .alloc-pct { width: 40px; text-align: right; font-size: 12px; color: #8b9fba; }
+    .alloc-val { width: 72px; text-align: right; font-size: 12px; font-weight: 600; }
+
+    /* ── DIVIDENDS ── */
+    .div-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-top: 4px; }
+    @media(max-width:800px){ .div-grid { grid-template-columns: repeat(2,1fr); } }
+    .div-card { background: rgba(6,13,26,0.9); border: 1px solid var(--border); border-radius: var(--r-md); padding: 12px 14px; }
+    .div-date  { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 4px; }
+    .div-gross { font-size: 18px; font-weight: 700; color: var(--green); letter-spacing: -0.02em; }
+    .div-row   { display: flex; justify-content: space-between; font-size: 11px; margin-top: 4px; color: var(--muted); }
+    .div-row span:last-child { color: var(--text); }
+
+    /* ── PERIOD COMPARE ── */
+    .compare-row { display: flex; padding: 7px 0; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255,255,255,0.04); }
+    .compare-metric { font-size: 12px; color: #8b9fba; }
+    .compare-vals   { display: flex; gap: 20px; }
+    .compare-val    { text-align: right; min-width: 80px; font-size: 12px; font-weight: 600; }
+
+    /* ── FEES ── */
+    .fee-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-top: 1px solid rgba(255,255,255,0.04); font-size: 12px; }
+    .fee-label { color: #8b9fba; font-size: 12px; }
+
+    /* ── FOOTER ── */
+    .footer-note { text-align: center; font-size: 11px; color: rgba(100,116,139,0.4); letter-spacing: 0.06em; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.03); }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ① HEADER -->
+  <header class="header">
+    <div class="header-left">
+      <div class="header-eyebrow">Portfolio Performance Report</div>
+      <div class="header-title">
+        Gen Portfolio
+        <span class="header-title-tag">DCA Strategy</span>
+      </div>
+      <div class="header-desc">
+        Systematic dollar-cost averaging into leveraged &amp; broad market S&amp;P 500 ETFs (UPRO + VUAA). Year 1: Feb 2025 – Jan 2026 (12 months). Year 2 begins Feb 2026. Snapshot prices locked at 4 Feb 2026.
+      </div>
+      <div class="header-badges">
+        <span class="badge badge-blue">
+          <span class="badge-dot" style="background:#38bdf8;"></span>
+          Year 1 · 5 Feb 2025 → 6 Jan 2026
+        </span>
+        <span class="badge">
+          <span class="badge-dot badge-live" style="background:#4ade80;"></span>
+          Year 2 · 5 Feb 2026 → 13 Mar 2026
+        </span>
+        <span class="badge badge-green">
+          <span class="badge-dot" style="background:#4ade80;"></span>
+          Last updated: 13 Mar 2026
+        </span>
+      </div>
+    </div>
+    <div class="header-right">
+      <span class="header-nav-pill active">Overview</span>
+      <span class="header-nav-pill">UPRO</span>
+      <span class="header-nav-pill">VUAA</span>
+      <div style="font-size:10px;margin-top:6px;text-align:right;line-height:1.6;">
+        Base Currency: USD
+      </div>
+    </div>
+  </header>
+
+  <!-- ② KPI CARDS -->
+  <section class="kpi-grid">
+    <article class="card card-glow-blue">
+      <div class="kpi-label">Current NAV <span class="kpi-sub-pill">Live</span></div>
+      <div class="kpi-value col-accent">$15,302.93</div>
+      <div class="kpi-footer">
+        <span class="chip chip-green"><span class="chip-dot"></span>+$139.18 since 4 Feb</span>
+        <span class="kpi-footer-note">+0.92%</span>
+      </div>
+    </article>
+
+    <article class="card card-glow-green">
+      <div class="kpi-label">Capital Deployed <span class="kpi-sub-pill">All-time</span></div>
+      <div class="kpi-value" style="color:#e2e8f0;">$14,000.00</div>
+      <div class="kpi-footer">
+        <span class="chip chip-blue"><span class="chip-dot"></span>14 × $1,000 transfers</span>
+        <span class="kpi-footer-note">Yr1 $12k · Yr2 $2k</span>
+      </div>
+    </article>
+
+    <article class="card card-glow-green">
+      <div class="kpi-label">Year 1 TWRR <span class="kpi-sub-pill">Feb 2025 – Jan 2026</span></div>
+      <div class="kpi-value col-green">+23.33%</div>
+      <div class="kpi-footer">
+        <span class="chip chip-neutral"><span class="chip-dot"></span>Fixed for YoY comparison</span>
+      </div>
+    </article>
+
+    <article class="card card-glow-red">
+      <div class="kpi-label">Year 2 TWRR <span class="kpi-sub-pill">Feb 2026 – Mar 2026</span></div>
+      <div class="kpi-value col-red">-5.23%</div>
+      <div class="kpi-footer">
+        <span class="chip chip-red"><span class="chip-dot"></span>-$868.27 drawdown from Yr1 peak</span>
+      </div>
+    </article>
+  </section>
+
+
+      <!-- TWRR vs SPX Chart -->
+      <section>
+        <div class="section-heading">
+          <div class="section-heading-left">
+            <div class="section-title">Performance vs S&P 500</div>
+            <div class="section-subtitle">UPRO &amp; VUAA price return vs SPX · Feb 2025 – Mar 2026 · Portfolio TWRR marked at Year 1 end (+23.33%)</div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <span class="chip chip-neutral" style="font-size:9px;">UPRO/VUAA: DCA buy price proxy</span>
+            <span class="chip chip-neutral" style="font-size:9px;">SPX: month-end closes</span>
+          </div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-card-header">
+            <div>
+              <div class="chart-card-title">Cumulative Return — Indexed to 0% at Feb 2025</div>
+              <div class="chart-card-sub">
+                UPRO &amp; VUAA approximate price return · SPX 500 (S&amp;P 500) month-end closes · Portfolio TWRR annotated at statement checkpoints
+              </div>
+            </div>
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+              <span style="display:flex;align-items:center;gap:5px;font-size:10px;color:#94a3b8;">
+                <span style="width:14px;height:2px;background:#38bdf8;display:inline-block;border-radius:2px;"></span>UPRO
+              </span>
+              <span style="display:flex;align-items:center;gap:5px;font-size:10px;color:#94a3b8;">
+                <span style="width:14px;height:2px;background:#a855f7;display:inline-block;border-radius:2px;"></span>VUAA
+              </span>
+              <span style="display:flex;align-items:center;gap:5px;font-size:10px;color:#94a3b8;">
+                <span style="width:14px;height:2px;background:#fbbf24;display:inline-block;border-radius:2px;border-style:dashed;"></span>S&amp;P 500
+              </span>
+              <span style="display:flex;align-items:center;gap:5px;font-size:10px;color:#94a3b8;">
+                <span style="width:8px;height:8px;background:#4ade80;display:inline-block;border-radius:50%;"></span>Portfolio TWRR
+              </span>
+            </div>
+          </div>
+          <canvas id="twrrChart" height="100"></canvas>
+          <div style="margin-top:10px;padding:8px 12px;border-radius:6px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);font-size:10px;color:var(--muted);display:flex;gap:20px;flex-wrap:wrap;">
+            <span>📌 UPRO/VUAA lines use monthly DCA buy prices as price proxy — not exact ETF prices</span>
+            <span>📌 SPX uses month-end closing prices from S&amp;P 500 index</span>
+            <span>📌 Portfolio TWRR dot (+23.33%) is confirmed from IB statement at Year 1 end</span>
+          </div>
+        </div>
+      </section>
+
+  <!-- ③ MAIN GRID -->
+  <section class="main-grid">
+    <div class="vstack">
+
+      <!-- Open Positions -->
+      <div>
+        <div class="section-heading">
+          <div class="section-heading-left">
+            <div class="section-title">Open Positions</div>
+            <div class="section-subtitle">Current holdings as at 13 Mar 2026 · Updated after March DCA</div>
+          </div>
+          <span class="chip chip-blue"><span class="chip-dot"></span>Live snapshot</span>
+        </div>
+        <div class="tbl-wrap">
+          <div class="tbl-head">
+            <div class="tbl-head-left">
+              <div class="tbl-head-title">UPRO &amp; VUAA</div>
+              <div class="tbl-head-sub">Cost basis includes all commissions</div>
+            </div>
+            <span class="chip chip-green"><span class="chip-dot"></span>+$1,265.94 total</span>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Symbol</th><th>Shares</th><th>Avg Cost</th><th>Cost Basis</th>
+                <th>Last Price</th><th>Market Value</th><th>Unrealized P&amp;L</th><th>Return</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>UPRO</strong></td>
+                <td>74</td><td>$91.30</td><td>$6,756.44</td>
+                <td>$103.01</td><td>$7,622.74</td>
+                <td class="col-green">+$866.30</td><td class="col-green">+12.82%</td>
+              </tr>
+              <tr>
+                <td><strong>VUAA</strong></td>
+                <td>59</td><td>$121.29</td><td>$7,155.90</td>
+                <td>$128.06</td><td>$7,555.54</td>
+                <td class="col-green">+$399.64</td><td class="col-green">+5.59%</td>
+              </tr>
+              <tr class="total-row">
+                <td>Total</td><td>133</td><td>—</td><td>$13,912.34</td>
+                <td>—</td><td>$15,178.28</td>
+                <td class="col-green">+$1,265.94</td><td class="col-green">+9.10%</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- DCA Price History Chart -->
+      <div class="chart-card">
+        <div class="chart-card-header">
+          <div>
+            <div class="chart-card-title">DCA Purchase Price History</div>
+            <div class="chart-card-sub">Monthly buy prices for UPRO and VUAA · Dashed line marks Year 1 → Year 2 boundary</div>
+          </div>
+          <span class="chip chip-neutral">14 months</span>
+        </div>
+        <canvas id="dcaChart" height="110"></canvas>
+      </div>
+
+      <!-- DCA Activity Log -->
+      <div>
+        <div class="section-heading">
+          <div class="section-heading-left">
+            <div class="section-title">DCA Activity Log</div>
+            <div class="section-subtitle">Year 1: 24 trades (Feb 2025 – Jan 2026) · Year 2: 4 trades (Feb 2026 – Mar 2026)</div>
+          </div>
+          <span class="chip chip-neutral">28 trades total</span>
+        </div>
+        <div class="tbl-wrap">
+          <div class="tbl-head">
+            <div class="tbl-head-left">
+              <div class="tbl-head-title">Full Trade Ledger</div>
+              <div class="tbl-head-sub">No sells executed · <span style="color:var(--green);">Green</span> = below current price · <span style="color:var(--red);">Red</span> = above current · UPRO $103.01 · VUAA $128.06</div>
+            </div>
+            <span class="badge">UPRO $1.09/trade · VUAA $4.36/trade</span>
+          </div>
+          <table>
+            <thead>
+              <tr><th>Date</th><th>Symbol</th><th>Period</th><th>Qty</th><th>Price</th><th>Proceeds</th><th>Comm</th></tr>
+            </thead>
+                                                <tbody>
+              <tr><td>5 Feb 2025</td><td>UPRO</td><td><span style="font-size:9px;color:var(--muted);">Year 1</span></td><td>5</td><td class="col-green">$93.15</td><td>-1.09</td><td class="col-green">+$48.21</td><td class="col-green">+10.33%</td></tr>
+              <tr><td>5 Feb 2025</td><td>VUAA</td><td><span style="font-size:9px;color:var(--muted);">Year 1</span></td><td>4</td><td class="col-green">$114.36</td><td>-4.36</td><td class="col-green">+$50.44</td><td class="col-green">+10.92%</td></tr>
+              <tr><td>5 Mar 2025</td><td>UPRO</td><td><span style="font-size:9px;color:var(--muted);">Year 1</span></td><td>6</td><td class="col-green">$82.00</td><td>-1.09</td><td class="col-green">+$124.97</td><td class="col-green">+25.34%</td></tr>
+              <tr><td>5 Mar 2025</td><td>VUAA</td><td><span style="font-size:9px;color:var(--muted);">Year 1</span></td><td>5</td><td class="col-green">$110.33</td><td>-4.36</td><td class="col-green">+$84.29</td><td class="col-green">+15.16%</td></tr>
+              <tr><td>7 Apr 2025</td><td>UPRO</td><td><span style="font-size:9px;color:var(--muted);">Year 1</span></td><td>10</td><td class="col-green">$47.44</td><td>-1.09</td><td class="col-green">+$554.61</td><td class="col-green">+116.64%</td></tr>
+              <tr><td>7 Apr 2025</td><td>VUAA</td><td><span style="font-size:9px;color:var(--muted);">Year 1</span></td><td>5</td><td class="col-green">$93.16</td><td>-4.36</td><td class="col-green">+$170.14</td><td class="col-green">+36.19%</td></tr>
+              <tr><td>5 May 2025</td><td>UPRO</td><td><span style="font-size:9px;color:var(--muted);">Year 1</span></td><td>7</td><td class="col-green">$70.34</td><td>-1.09</td><td class="col-green">+$227.60</td><td class="col-green">+46.12%</td></tr>
+              <tr><td>6 May 2025</td><td>VUAA</td><td><span style="font-size:9px;color:var(--muted);">Year 1</span></td><td>5</td><td class="col-green">$107.58</td><td>-4.36</td><td class="col-green">+$98.04</td><td class="col-green">+18.08%</td></tr>
+              <tr><td>5 Jun 2025</td><td>UPRO</td><td><span style="font-size:9px;color:var(--muted);">Year 1</span></td><td>8</td><td class="col-green">$83.05</td><td>-1.09</td><td class="col-green">+$158.59</td><td class="col-green">+23.83%</td></tr>
+              <tr><td>5 Jun 2025</td><td>VUAA</td><td><span style="font-size:9px;color:var(--muted);">Year 1</span></td><td>3</td><td class="col-green">$114.22</td><td>-4.36</td><td class="col-green">+$37.16</td><td class="col-green">+10.71%</td></tr>
+              <tr><td>7 Jul 2025</td><td>UPRO</td><td><span style="font-size:9px;color:var(--muted);">Year 1</span></td><td>4</td><td class="col-green">$93.63</td><td>-1.09</td><td class="col-green">+$36.43</td><td class="col-green">+9.70%</td></tr>
+              <tr><td>7 Jul 2025</td><td>VUAA</td><td><span style="font-size:9px;color:var(--muted);">Year 1</span></td><td>5</td><td class="col-green">$119.80</td><td>-4.36</td><td class="col-green">+$36.94</td><td class="col-green">+6.12%</td></tr>
+              <tr><td>5 Aug 2025</td><td>UPRO</td><td><span style="font-size:9px;color:var(--muted);">Year 1</span></td><td>5</td><td class="col-green">$96.45</td><td>-1.09</td><td class="col-green">+$31.71</td><td class="col-green">+6.56%</td></tr>
+              <tr><td>5 Aug 2025</td><td>VUAA</td><td><span style="font-size:9px;color:var(--muted);">Year 1</span></td><td>4</td><td class="col-green">$121.24</td><td>-4.36</td><td class="col-green">+$22.92</td><td class="col-green">+4.68%</td></tr>
+              <tr><td>5 Sep 2025</td><td>UPRO</td><td><span style="font-size:9px;color:var(--muted);">Year 1</span></td><td>5</td><td class="col-red">$104.44</td><td>-1.09</td><td class="col-red">$-8.24</td><td class="col-red">-1.57%</td></tr>
+              <tr><td>5 Sep 2025</td><td>VUAA</td><td><span style="font-size:9px;color:var(--muted);">Year 1</span></td><td>4</td><td class="col-green">$124.79</td><td>-4.36</td><td class="col-green">+$8.72</td><td class="col-green">+1.73%</td></tr>
+              <tr><td>6 Oct 2025</td><td>UPRO</td><td><span style="font-size:9px;color:var(--muted);">Year 1</span></td><td>4</td><td class="col-red">$114.16</td><td>-1.09</td><td class="col-red">$-45.69</td><td class="col-red">-9.98%</td></tr>
+              <tr><td>6 Oct 2025</td><td>VUAA</td><td><span style="font-size:9px;color:var(--muted);">Year 1</span></td><td>4</td><td class="col-red">$129.30</td><td>-4.36</td><td class="col-red">$-9.32</td><td class="col-red">-1.79%</td></tr>
+              <tr><td>5 Nov 2025</td><td>UPRO</td><td><span style="font-size:9px;color:var(--muted);">Year 1</span></td><td>4</td><td class="col-red">$115.68</td><td>-1.09</td><td class="col-red">$-51.77</td><td class="col-red">-11.16%</td></tr>
+              <tr><td>5 Nov 2025</td><td>VUAA</td><td><span style="font-size:9px;color:var(--muted);">Year 1</span></td><td>4</td><td class="col-red">$130.40</td><td>-4.36</td><td class="col-red">$-13.72</td><td class="col-red">-2.61%</td></tr>
+              <tr><td>5 Dec 2025</td><td>UPRO</td><td><span style="font-size:9px;color:var(--muted);">Year 1</span></td><td>4</td><td class="col-red">$117.97</td><td>-1.09</td><td class="col-red">$-60.93</td><td class="col-red">-12.88%</td></tr>
+              <tr><td>5 Dec 2025</td><td>VUAA</td><td><span style="font-size:9px;color:var(--muted);">Year 1</span></td><td>4</td><td class="col-red">$131.91</td><td>-4.36</td><td class="col-red">$-19.76</td><td class="col-red">-3.71%</td></tr>
+              <tr><td>6 Jan 2026</td><td>UPRO</td><td><span style="font-size:9px;color:var(--muted);">Year 1</span></td><td>4</td><td class="col-red">$118.69</td><td>-1.09</td><td class="col-red">$-63.81</td><td class="col-red">-13.41%</td></tr>
+              <tr><td>6 Jan 2026</td><td>VUAA</td><td><span style="font-size:9px;color:var(--muted);">Year 1</span></td><td>4</td><td class="col-red">$132.82</td><td>-4.36</td><td class="col-red">$-23.40</td><td class="col-red">-4.37%</td></tr>
+              <tr class="yr2-row"><td>5 Feb 2026</td><td>UPRO</td><td><span class="yr2-label">Year 2</span></td><td>4</td><td class="col-red">$113.76</td><td>-1.09</td><td class="col-red">$-44.09</td><td class="col-red">-9.67%</td></tr>
+              <tr class="yr2-row"><td>5 Feb 2026</td><td>VUAA</td><td><span class="yr2-label">Year 2</span></td><td>4</td><td class="col-red">$132.48</td><td>-4.36</td><td class="col-red">$-22.04</td><td class="col-red">-4.13%</td></tr>
+              <tr class="yr2-row"><td>5 Mar 2026</td><td>UPRO</td><td><span class="yr2-label">Year 2</span></td><td>4</td><td class="col-red">$113.06</td><td>-1.09</td><td class="col-red">$-41.29</td><td class="col-red">-9.11%</td></tr>
+              <tr class="yr2-row"><td>5 Mar 2026</td><td>VUAA</td><td><span class="yr2-label">Year 2</span></td><td>4</td><td class="col-red">$132.14</td><td>-4.36</td><td class="col-red">$-20.68</td><td class="col-red">-3.88%</td></tr>
+              <tr class="total-row"><td>Total</td><td>—</td><td>—</td><td>133</td><td>—</td><td>-$76.30</td><td class="col-green">+$1,265.94</td><td class="col-green">+9.10%</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT COLUMN -->
+    <div class="vstack">
+
+      <!-- Allocation -->
+      <div class="card">
+        <div class="kpi-label" style="margin-bottom:12px;">Portfolio Allocation <span class="kpi-sub-pill">By Market Value</span></div>
+        <div class="alloc-row">
+          <div class="alloc-label"><span class="alloc-dot" style="background:#38bdf8;"></span>UPRO</div>
+          <div class="alloc-bar-track"><div class="alloc-bar-fill" style="width:49.9%;background:linear-gradient(90deg,#38bdf8,#818cf8);"></div></div>
+          <div class="alloc-pct">49.9%</div>
+          <div class="alloc-val col-accent">$7,622.74</div>
+        </div>
+        <div class="alloc-row">
+          <div class="alloc-label"><span class="alloc-dot" style="background:#a855f7;"></span>VUAA</div>
+          <div class="alloc-bar-track"><div class="alloc-bar-fill" style="width:49.5%;background:linear-gradient(90deg,#a855f7,#818cf8);"></div></div>
+          <div class="alloc-pct">49.5%</div>
+          <div class="alloc-val" style="color:#d8b4fe;">$7,555.54</div>
+        </div>
+        <div class="alloc-row">
+          <div class="alloc-label"><span class="alloc-dot" style="background:#fbbf24;"></span>Cash</div>
+          <div class="alloc-bar-track"><div class="alloc-bar-fill" style="width:0.8%;background:#fbbf24;"></div></div>
+          <div class="alloc-pct">0.8%</div>
+          <div class="alloc-val col-amber">$124.65</div>
+        </div>
+        <div style="margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.05);font-size:10px;color:var(--muted);">
+          Total NAV: <strong style="color:var(--text);">$15,302.93</strong> · Stocks: $15,178.28 · Cash: $124.65
+        </div>
+      </div>
+
+      <!-- Deposits chart -->
+      <div class="chart-card">
+        <div class="chart-card-header">
+          <div>
+            <div class="chart-card-title">Monthly Deposits &amp; Cumulative</div>
+            <div class="chart-card-sub">Year 1 (Feb 2025 – Jan 2026): 12 × $1,000 = $12,000 · Year 2: 2 × $1,000 = $2,000</div>
+          </div>
+          <span class="chip chip-blue">$14,000 total</span>
+        </div>
+        <canvas id="depositsChart" height="130"></canvas>
+      </div>
+
+      <!-- Period Comparison -->
+      <div class="card">
+        <div class="kpi-label" style="margin-bottom:8px;">Period Comparison</div>
+        <div style="display:flex;justify-content:flex-end;gap:28px;margin-bottom:4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:var(--muted);">
+          <span style="min-width:80px;text-align:right;">Year 1</span>
+          <span style="min-width:80px;text-align:right;">Year 2</span>
+        </div>
+        <div class="compare-row" style="border-top:none;">
+          <div class="compare-metric">TWRR</div>
+          <div class="compare-vals">
+            <div class="compare-val col-green">+23.33%</div>
+            <div class="compare-val col-red">-5.23%</div>
+          </div>
+        </div>
+        <div class="compare-row">
+          <div class="compare-metric">Unrealized P&amp;L Δ</div>
+          <div class="compare-vals">
+            <div class="compare-val col-green">+$2,134.21</div>
+            <div class="compare-val col-red">-$868.27</div>
+          </div>
+        </div>
+        <div class="compare-row">
+          <div class="compare-metric">Deposits</div>
+          <div class="compare-vals">
+            <div class="compare-val">$12,000</div>
+            <div class="compare-val">$2,000</div>
+          </div>
+        </div>
+        <div class="compare-row">
+          <div class="compare-metric">Ending NAV</div>
+          <div class="compare-vals">
+            <div class="compare-val">$15,163.75</div>
+            <div class="compare-val">$15,302.93</div>
+          </div>
+        </div>
+        <div class="compare-row">
+          <div class="compare-metric">Period</div>
+          <div class="compare-vals">
+            <div class="compare-val col-muted" style="font-size:10px;">Feb'25–Feb'26</div>
+            <div class="compare-val col-muted" style="font-size:10px;">Feb–Mar'26</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Fees -->
+      <div class="card">
+        <div class="kpi-label" style="margin-bottom:8px;">Commissions &amp; Fee Drag</div>
+        <div class="fee-row" style="border-top:none;">
+          <span class="fee-label">UPRO Year 1 (12 × $1.09)</span>
+          <span class="col-red">-$13.08</span>
+        </div>
+        <div class="fee-row">
+          <span class="fee-label">VUAA Year 1 (12 × $4.36)</span>
+          <span class="col-red">-$52.32</span>
+        </div>
+        <div class="fee-row">
+          <span class="fee-label">UPRO Year 2 (2 × $1.09)</span>
+          <span class="col-red">-$2.18</span>
+        </div>
+        <div class="fee-row">
+          <span class="fee-label">VUAA Year 2 (2 × $4.36)</span>
+          <span class="col-red">-$8.72</span>
+        </div>
+        <div class="fee-row" style="font-weight:600;">
+          <span class="fee-label">Total commissions</span>
+          <span class="col-red">-$76.30</span>
+        </div>
+        <div class="fee-row">
+          <span class="fee-label">As % of $14,000 deployed</span>
+          <span class="col-muted">0.55%</span>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ④ DIVIDENDS -->
+  <section>
+    <div class="section-heading">
+      <div class="section-heading-left">
+        <div class="section-title">Dividend History</div>
+        <div class="section-subtitle">UPRO quarterly dividends · Net after US withholding tax (30%) · All in Year 1</div>
+      </div>
+      <span class="chip chip-green"><span class="chip-dot"></span>$29.54 net received</span>
+    </div>
+    <div class="div-grid">
+      <div class="div-card">
+        <div class="div-date">1 Apr 2025</div>
+        <div class="div-gross">+$2.07</div>
+        <div class="div-row"><span>Per share</span><span>$0.1884</span></div>
+        <div class="div-row"><span>Shares held</span><span>11</span></div>
+        <div class="div-row"><span>Withheld</span><span class="col-red">-$0.62</span></div>
+        <div class="div-row"><span>Net</span><span class="col-green">$1.45</span></div>
+      </div>
+      <div class="div-card">
+        <div class="div-date">1 Jul 2025</div>
+        <div class="div-gross">+$8.26</div>
+        <div class="div-row"><span>Per share</span><span>$0.2293</span></div>
+        <div class="div-row"><span>Shares held</span><span>36</span></div>
+        <div class="div-row"><span>Withheld</span><span class="col-red">-$2.48</span></div>
+        <div class="div-row"><span>Net</span><span class="col-green">$5.78</span></div>
+      </div>
+      <div class="div-card">
+        <div class="div-date">30 Sep 2025</div>
+        <div class="div-gross">+$10.78</div>
+        <div class="div-row"><span>Per share</span><span>$0.2155</span></div>
+        <div class="div-row"><span>Shares held</span><span>50</span></div>
+        <div class="div-row"><span>Withheld</span><span class="col-red">-$3.23</span></div>
+        <div class="div-row"><span>Net</span><span class="col-green">$7.55</span></div>
+      </div>
+      <div class="div-card">
+        <div class="div-date">31 Dec 2025</div>
+        <div class="div-gross">+$21.09</div>
+        <div class="div-row"><span>Per share</span><span>$0.3402</span></div>
+        <div class="div-row"><span>Shares held</span><span>62</span></div>
+        <div class="div-row"><span>Withheld</span><span class="col-red">-$6.33</span></div>
+        <div class="div-row"><span>Net</span><span class="col-green">$14.76</span></div>
+      </div>
+    </div>
+    <div style="margin-top:10px;padding:10px 14px;border-radius:var(--r-md);background:rgba(6,13,26,0.85);border:1px solid rgba(255,255,255,0.06);font-size:10px;color:var(--muted);display:flex;gap:24px;flex-wrap:wrap;">
+      <span>Gross total: <strong class="col-green">$42.20</strong></span>
+      <span>Total withheld: <strong class="col-red">-$12.66</strong></span>
+      <span>Net received: <strong class="col-green">$29.54</strong></span>
+      <span>Year 2 tax adjustment: <strong class="col-green">+$7.45</strong></span>
+    </div>
+  </section>
+
+  <!-- ⑤ P&L SECTION -->
+  <section>
+    <div class="section-heading">
+      <div class="section-heading-left">
+        <div class="section-title">Profit &amp; Loss</div>
+        <div class="section-subtitle">Year 1 snapshot permanently locked at 4 Feb 2026 · Will not change regardless of market movements</div>
+      </div>
+    </div>
+    <div class="pnl-grid">
+
+      <div class="pnl-card pnl-fixed">
+        <div class="pnl-label">
+          Year 1 Snapshot — Fixed P&amp;L
+          <span class="lock-badge">🔒 Locked 4 Feb 2026</span>
+        </div>
+        <div class="pnl-headline col-green">+$2,134.21</div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:10px;">+16.51% return on Year 1 cost basis of $12,926.09</div>
+        <div class="pnl-row">
+          <span class="pnl-row-label">UPRO (70 shares @ lock)</span>
+          <span class="col-green">+$1,538.99 (+24.42%)</span>
+        </div>
+        <div class="pnl-row">
+          <span class="pnl-row-label">VUAA (55 shares @ lock)</span>
+          <span class="col-green">+$595.22 (+8.99%)</span>
+        </div>
+        <div class="pnl-row">
+          <span class="pnl-row-label">UPRO close at lock</span>
+          <span>$112.03</span>
+        </div>
+        <div class="pnl-row">
+          <span class="pnl-row-label">VUAA close at lock</span>
+          <span>$131.24</span>
+        </div>
+        <div class="pnl-row">
+          <span class="pnl-row-label">Year 1 deposits (Feb'25–Jan'26)</span>
+          <span>12 × $1,000 = $12,000</span>
+        </div>
+        <div class="pnl-note">
+          This figure will never change. It captures performance at the end of Year 1 (4 Feb 2026) for year-on-year comparison. Cost basis reflects 12 months of DCA buys (Feb 2025 – Jan 2026). Snapshot prices locked at 4 Feb 2026 market close.
+        </div>
+      </div>
+
+      <div class="pnl-card pnl-floating">
+        <div class="pnl-label">
+          Current Floating P&amp;L
+          <span class="lock-badge" style="border-color:rgba(56,189,248,0.4);color:#7dd3fc;">📡 Live vs Cost Basis</span>
+        </div>
+        <div class="pnl-headline col-green">+$1,265.94</div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:10px;">+9.10% return on current cost basis of $13,912.34</div>
+        <div class="pnl-row">
+          <span class="pnl-row-label">UPRO (74 shares)</span>
+          <span class="col-green">+$866.30 (+12.82%)</span>
+        </div>
+        <div class="pnl-row">
+          <span class="pnl-row-label">VUAA (59 shares)</span>
+          <span class="col-green">+$399.64 (+5.59%)</span>
+        </div>
+        <div class="pnl-row">
+          <span class="pnl-row-label">UPRO last price</span>
+          <span>$103.01</span>
+        </div>
+        <div class="pnl-row">
+          <span class="pnl-row-label">VUAA last price</span>
+          <span>$128.06</span>
+        </div>
+        <div class="pnl-row" style="border-color:rgba(248,113,113,0.25);">
+          <span class="pnl-row-label">vs Year 1 snapshot</span>
+          <span class="col-red">-$868.27 drawdown</span>
+        </div>
+        <div class="pnl-note" style="border-color:rgba(56,189,248,0.12);background:rgba(56,189,248,0.03);">
+          Reflects unrealized P&amp;L against full accumulated cost basis including Year 2 buys. Updates as new statements are added.
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+
+  <!-- FOOTER -->
+  <div class="footer-note">
+    Gen Portfolio Dashboard · Data sourced from Interactive Brokers statements · All values in USD · No account-identifying information displayed
+  </div>
+
+</div>
+
+<script>
+  Chart.defaults.color = '#64748b';
+  Chart.defaults.borderColor = 'rgba(255,255,255,0.05)';
+  Chart.defaults.font.family = "'Inter', system-ui, sans-serif";
+  Chart.defaults.font.size = 12;
+
+  const labels = [
+    'Feb 25','Mar 25','Apr 25','May 25','Jun 25','Jul 25',
+    'Aug 25','Sep 25','Oct 25','Nov 25','Dec 25','Jan 26','Feb 26','Mar 26'
+  ];
+
+  // DCA Price History — vertical annotation at boundary between Yr1 and Yr2
+  new Chart(document.getElementById('dcaChart'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'UPRO',
+          data: [93.15,82.00,47.44,70.34,83.05,93.63,96.45,104.44,114.16,115.68,117.97,118.69,113.76,113.06],
+          borderColor: '#38bdf8',
+          backgroundColor: 'rgba(56,189,248,0.07)',
+          borderWidth: 2,
+          pointRadius: 4,
+          pointBackgroundColor: '#38bdf8',
+          pointHoverRadius: 6,
+          tension: 0.35,
+          fill: true,
+        },
+        {
+          label: 'VUAA',
+          data: [114.36,110.33,93.16,107.58,114.22,119.80,121.24,124.79,129.30,130.40,131.91,132.82,132.48,132.14],
+          borderColor: '#a855f7',
+          backgroundColor: 'rgba(168,85,247,0.07)',
+          borderWidth: 2,
+          pointRadius: 4,
+          pointBackgroundColor: '#a855f7',
+          pointHoverRadius: 6,
+          tension: 0.35,
+          fill: true,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'top', labels: { boxWidth: 10, padding: 16, color: '#94a3b8' } },
+        tooltip: {
+          backgroundColor: 'rgba(6,13,26,0.96)',
+          borderColor: 'rgba(255,255,255,0.1)',
+          borderWidth: 1,
+          padding: 10,
+          titleColor: '#e2e8f0',
+          bodyColor: '#94a3b8',
+          callbacks: { label: ctx => ` ${ctx.dataset.label}: $${ctx.raw.toFixed(2)}` }
+        },
+        annotation: undefined
+      },
+      scales: {
+        x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#475569' } },
+        y: {
+          grid: { color: 'rgba(255,255,255,0.04)' },
+          ticks: { color: '#475569', callback: v => '$'+v },
+          beginAtZero: false
+        }
+      }
+    }
+  });
+
+  // Deposits: Year 1 = months 1-12, Year 2 = months 13-14
+  const depositColors = Array(12).fill('rgba(56,189,248,0.22)').concat(Array(2).fill('rgba(74,222,128,0.22)'));
+  const depositBorders = Array(12).fill('rgba(56,189,248,0.6)').concat(Array(2).fill('rgba(74,222,128,0.6)'));
+  const cumulative = labels.map((_,i) => (i+1)*1000);
+
+  new Chart(document.getElementById('depositsChart'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          type: 'bar',
+          label: 'Monthly Deposit',
+          data: Array(14).fill(1000),
+          backgroundColor: depositColors,
+          borderColor: depositBorders,
+          borderWidth: 1,
+          borderRadius: 4,
+          yAxisID: 'y',
+        },
+        {
+          type: 'line',
+          label: 'Cumulative',
+          data: cumulative,
+          borderColor: '#4ade80',
+          backgroundColor: 'rgba(74,222,128,0.06)',
+          borderWidth: 2,
+          pointRadius: 3,
+          pointBackgroundColor: '#4ade80',
+          tension: 0.3,
+          fill: true,
+          yAxisID: 'y2',
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'top', labels: { boxWidth: 10, padding: 16, color: '#94a3b8' } },
+        tooltip: {
+          backgroundColor: 'rgba(6,13,26,0.96)',
+          borderColor: 'rgba(255,255,255,0.1)',
+          borderWidth: 1,
+          padding: 10,
+          titleColor: '#e2e8f0',
+          bodyColor: '#94a3b8',
+          callbacks: {
+            label: ctx => ` ${ctx.dataset.label}: $${ctx.raw.toLocaleString()}`,
+            afterBody: (items) => {
+              const idx = items[0].dataIndex;
+              return idx <= 11 ? ['Period: Year 1'] : ['Period: Year 2'];
+            }
+          }
+        }
+      },
+      scales: {
+        x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#475569' } },
+        y:  { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#475569', callback: v => '$'+v }, max: 2000, min: 0 },
+        y2: { position: 'right', grid: { display: false }, ticks: { color: '#475569', callback: v => '$'+v/1000+'k' } }
+      }
+    }
+  });
+
+  // TWRR vs SPX Chart
+  const twrrLabels = ["Feb '25","Mar '25","Apr '25","May '25","Jun '25","Jul '25","Aug '25","Sep '25","Oct '25","Nov '25","Dec '25","Jan '26","Feb '26","Mar '26"];
+  const upro_pct  = [0.00,-11.97,-49.07,-24.49,-10.84,0.52,3.54,12.12,22.56,24.19,26.65,27.42,22.13,10.59];
+  const vuaa_pct  = [0.00,-3.52,-18.54,-5.93,-0.12,4.76,6.02,9.12,13.06,14.03,15.35,16.14,15.84,11.98];
+  const spx_pct   = [0.00,-1.40,-7.07,-7.78,-2.11,2.75,4.97,6.98,10.75,13.27,13.41,13.35,14.90,10.46];
+
+  // Portfolio TWRR annotation points (confirmed from statements)
+  const twrrDots = Array(14).fill(null);
+  twrrDots[11] = 23.33;   // Jan '26 = Year 1 end
+
+  new Chart(document.getElementById('twrrChart'), {
+    type: 'line',
+    data: {
+      labels: twrrLabels,
+      datasets: [
+        {
+          label: 'UPRO',
+          data: upro_pct,
+          borderColor: '#38bdf8',
+          backgroundColor: 'rgba(56,189,248,0.06)',
+          borderWidth: 2.5,
+          pointRadius: 3,
+          pointBackgroundColor: '#38bdf8',
+          pointHoverRadius: 6,
+          tension: 0.3,
+          fill: false,
+        },
+        {
+          label: 'VUAA',
+          data: vuaa_pct,
+          borderColor: '#a855f7',
+          backgroundColor: 'rgba(168,85,247,0.06)',
+          borderWidth: 2.5,
+          pointRadius: 3,
+          pointBackgroundColor: '#a855f7',
+          pointHoverRadius: 6,
+          tension: 0.3,
+          fill: false,
+        },
+        {
+          label: 'S&P 500',
+          data: spx_pct,
+          borderColor: '#fbbf24',
+          backgroundColor: 'rgba(251,191,36,0.04)',
+          borderWidth: 2,
+          borderDash: [5,4],
+          pointRadius: 2,
+          pointBackgroundColor: '#fbbf24',
+          pointHoverRadius: 5,
+          tension: 0.3,
+          fill: false,
+        },
+        {
+          label: 'Portfolio TWRR (confirmed)',
+          data: twrrDots,
+          borderColor: 'transparent',
+          backgroundColor: '#4ade80',
+          borderWidth: 0,
+          pointRadius: (ctx) => ctx.raw !== null ? 8 : 0,
+          pointStyle: 'circle',
+          pointBackgroundColor: '#4ade80',
+          pointBorderColor: '#020817',
+          pointBorderWidth: 2,
+          pointHoverRadius: 10,
+          showLine: false,
+          type: 'scatter',
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: 'rgba(6,13,26,0.96)',
+          borderColor: 'rgba(255,255,255,0.1)',
+          borderWidth: 1,
+          padding: 12,
+          titleColor: '#e2e8f0',
+          bodyColor: '#94a3b8',
+          callbacks: {
+            label: ctx => {
+              if (ctx.raw === null) return null;
+              const sign = ctx.raw >= 0 ? '+' : '';
+              return ` ${ctx.dataset.label}: ${sign}${ctx.raw.toFixed(2)}%`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: 'rgba(255,255,255,0.04)' },
+          ticks: { color: '#475569' }
+        },
+        y: {
+          grid: { color: 'rgba(255,255,255,0.04)' },
+          ticks: {
+            color: '#475569',
+            callback: v => (v >= 0 ? '+' : '') + v + '%'
+          },
+        }
+      }
+    }
+  });
+
+</script>
+</body>
+</html>
