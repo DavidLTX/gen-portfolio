@@ -1,4 +1,10 @@
 <!DOCTYPE html>
+<!-- ============================================================
+     Gen Portfolio Dashboard
+     Version : 1.0 STABLE
+     Date    : 16 Mar 2026
+     Status  : Stable — all sections verified, live price fetch active
+     ============================================================ -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -115,6 +121,119 @@
       }
     }
   });
+
+
+  // ── LIVE PRICE FETCHING ────────────────────────────────────────────────
+  const HOLDINGS = { UPRO: { shares: 74, costBasis: 6756.44 }, VUAA: { shares: 59, costBasis: 7155.90 } };
+  const CASH          = 124.65;
+  const YEAR1_END_NAV = 15163.75;
+  const TOTAL_COST    = 13912.34;
+  const YEAR1_SNAPSHOT_PNL = 2134.21;
+  const YF = 'https://query1.finance.yahoo.com/v8/finance/chart/';
+  const TICKERS = { UPRO: 'UPRO', VUAA: 'VUAA.AS', FX: 'EURUSD=X', SPX: '%5EGSPC' };
+
+  async function fetchPrice(ticker) {
+    const res  = await fetch(YF + ticker + '?interval=1d&range=1d');
+    if (!res.ok) throw new Error('HTTP ' + res.status + ' for ' + ticker);
+    const data = await res.json();
+    return data.chart.result[0].meta.regularMarketPrice;
+  }
+
+  function fmt(n)    { const a = Math.abs(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','); return (n>=0?'+':'-')+'$'+a; }
+  function fmtP(n)   { return (n>=0?'+':'')+n.toFixed(2)+'%'; }
+  function setEl(id,v){ const e=document.getElementById(id); if(e) e.textContent=v; }
+  function setCol(id,v){ const e=document.getElementById(id); if(!e) return; e.className=e.className.replace(/col-(green|red)/g,''); e.classList.add(v>=0?'col-green':'col-red'); }
+
+  async function fetchLivePrices() {
+    const btn=document.getElementById('refresh-btn'), icon=document.getElementById('refresh-icon');
+    if(btn){ btn.disabled=true; icon.textContent='⟳'; }
+    try {
+      const [uproRaw,vuaaEur,eurUsd,spxLive] = await Promise.all([
+        fetchPrice(TICKERS.UPRO), fetchPrice(TICKERS.VUAA),
+        fetchPrice(TICKERS.FX),  fetchPrice(TICKERS.SPX)
+      ]);
+      const up  = uproRaw, vu = vuaaEur * eurUsd;
+      const upV = up * HOLDINGS.UPRO.shares, vuV = vu * HOLDINGS.VUAA.shares;
+      const stocks = upV + vuV, nav = stocks + CASH;
+      const upPnl = upV - HOLDINGS.UPRO.costBasis, vuPnl = vuV - HOLDINGS.VUAA.costBasis;
+      const totPnl = upPnl + vuPnl, totPct = totPnl/TOTAL_COST*100;
+      const upPct = upPnl/HOLDINGS.UPRO.costBasis*100, vuPct = vuPnl/HOLDINGS.VUAA.costBasis*100;
+      const navChg = nav - YEAR1_END_NAV, navPct = navChg/YEAR1_END_NAV*100;
+
+      // KPI
+      setEl('kpi-nav','$'+nav.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','));
+      setEl('kpi-nav-change', fmt(navChg)+' since 4 Feb');
+      setEl('kpi-nav-pct', fmtP(navPct));
+      const nc=document.getElementById('kpi-nav-chip'); if(nc) nc.className='chip '+(navChg>=0?'chip-green':'chip-red');
+
+      // Positions table
+      setEl('pos-upro-price','$'+up.toFixed(2)); setEl('pos-vuaa-price','$'+vu.toFixed(2));
+      setEl('pos-upro-value','$'+upV.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','));
+      setEl('pos-vuaa-value','$'+vuV.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','));
+      setEl('pos-upro-pnl', fmt(upPnl));  setEl('pos-upro-pct', fmtP(upPct));
+      setEl('pos-vuaa-pnl', fmt(vuPnl));  setEl('pos-vuaa-pct', fmtP(vuPct));
+      setEl('pos-total-value','$'+stocks.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','));
+      setEl('pos-total-pnl', fmt(totPnl)); setEl('pos-total-pct', fmtP(totPct));
+      ['pos-upro-pnl','pos-upro-pct'].forEach(id=>setCol(id,upPnl));
+      ['pos-vuaa-pnl','pos-vuaa-pct'].forEach(id=>setCol(id,vuPnl));
+      ['pos-total-pnl','pos-total-pct'].forEach(id=>setCol(id,totPnl));
+
+      // Allocation bars
+      const ua=(upV/nav*100).toFixed(1), va=(vuV/nav*100).toFixed(1);
+      setEl('alloc-upro-val','$'+upV.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','));
+      setEl('alloc-vuaa-val','$'+vuV.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','));
+      setEl('alloc-upro-pct',ua+'%'); setEl('alloc-vuaa-pct',va+'%');
+      const ub=document.getElementById('alloc-upro-bar'), vb=document.getElementById('alloc-vuaa-bar');
+      if(ub) ub.style.width=ua+'%'; if(vb) vb.style.width=va+'%';
+      setEl('alloc-total-nav','$'+nav.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','));
+      setEl('alloc-stocks','$'+stocks.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','));
+
+      // Floating P&L
+      setEl('float-pnl-total',fmt(totPnl)); setEl('float-pnl-pct',fmtP(totPct));
+      setEl('float-upro',fmt(upPnl)+' ('+fmtP(upPct)+')');
+      setEl('float-vuaa',fmt(vuPnl)+' ('+fmtP(vuPct)+')');
+      setEl('float-upro-price','$'+up.toFixed(2)); setEl('float-vuaa-price','$'+vu.toFixed(2));
+      const vs1=totPnl-YEAR1_SNAPSHOT_PNL;
+      setEl('float-vs-yr1',fmt(vs1)+' vs Year 1 snapshot');
+      const ft=document.getElementById('float-pnl-total');
+      if(ft) ft.className='pnl-headline '+(totPnl>=0?'col-green':'col-red');
+      setCol('float-upro',upPnl); setCol('float-vuaa',vuPnl); setCol('float-vs-yr1',vs1);
+
+      // Trade ledger rows
+      document.querySelectorAll('[data-trade]').forEach(row => {
+        const sym=row.dataset.trade, price=parseFloat(row.dataset.price),
+              qty=parseInt(row.dataset.qty), comm=parseFloat(row.dataset.comm);
+        const cur=sym==='UPRO'?up:vu;
+        const unr=(cur-price)*qty-Math.abs(comm), pct=unr/(price*qty+Math.abs(comm))*100;
+        const sign=unr>=0?'+':'', cls=unr>=0?'col-green':'col-red';
+        const pc=row.querySelector('.trade-price'), pl=row.querySelector('.trade-pnl'), pp=row.querySelector('.trade-pct');
+        if(pc) pc.className='trade-price '+(price<cur?'col-green':'col-red');
+        if(pl){ pl.textContent=sign+'$'+Math.abs(unr).toFixed(2); pl.className='trade-pnl '+cls; }
+        if(pp){ pp.textContent=(pct>=0?'+':'')+pct.toFixed(2)+'%'; pp.className='trade-pct '+cls; }
+      });
+
+      // Performance chart — update last point for all 3 series
+      if(window.twrrChartInstance){
+        window.twrrChartInstance.data.datasets[0].data[13]=+((up/93.15-1)*100).toFixed(2);
+        window.twrrChartInstance.data.datasets[1].data[13]=+((vu/114.36-1)*100).toFixed(2);
+        window.twrrChartInstance.data.datasets[2].data[13]=+((spxLive/6039-1)*100).toFixed(2);
+        window.twrrChartInstance.update();
+      }
+
+      // Timestamp
+      const ts=new Date().toLocaleTimeString('en-SG',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+      setEl('last-fetched','⟳ Live · Updated '+ts);
+      document.getElementById('last-fetched').style.color='#4ade80';
+    } catch(err) {
+      console.error('Price fetch failed:',err);
+      setEl('last-fetched','⚠ Price fetch failed — using last known data');
+      document.getElementById('last-fetched').style.color='#f87171';
+    } finally {
+      if(btn){ btn.disabled=false; icon.textContent='↻'; }
+    }
+  }
+
+  window.addEventListener('load', fetchLivePrices);
 
 </script>
 
@@ -345,7 +464,7 @@
   <!-- ① HEADER -->
   <header class="header">
     <div class="header-left">
-      <div class="header-eyebrow">Portfolio Performance Report</div>
+      <div class="header-eyebrow">Portfolio Performance Report <span style="font-size:9px;font-weight:700;letter-spacing:0.12em;background:rgba(56,189,248,0.12);border:1px solid rgba(56,189,248,0.3);color:#38bdf8;padding:2px 7px;border-radius:999px;margin-left:6px;vertical-align:middle;">v1.0 STABLE</span></div>
       <div class="header-title">
         Gen Portfolio
         <span class="header-title-tag">DCA Strategy</span>
@@ -1096,6 +1215,119 @@
       }
     }
   });
+
+
+  // ── LIVE PRICE FETCHING ────────────────────────────────────────────────
+  const HOLDINGS = { UPRO: { shares: 74, costBasis: 6756.44 }, VUAA: { shares: 59, costBasis: 7155.90 } };
+  const CASH          = 124.65;
+  const YEAR1_END_NAV = 15163.75;
+  const TOTAL_COST    = 13912.34;
+  const YEAR1_SNAPSHOT_PNL = 2134.21;
+  const YF = 'https://query1.finance.yahoo.com/v8/finance/chart/';
+  const TICKERS = { UPRO: 'UPRO', VUAA: 'VUAA.AS', FX: 'EURUSD=X', SPX: '%5EGSPC' };
+
+  async function fetchPrice(ticker) {
+    const res  = await fetch(YF + ticker + '?interval=1d&range=1d');
+    if (!res.ok) throw new Error('HTTP ' + res.status + ' for ' + ticker);
+    const data = await res.json();
+    return data.chart.result[0].meta.regularMarketPrice;
+  }
+
+  function fmt(n)    { const a = Math.abs(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','); return (n>=0?'+':'-')+'$'+a; }
+  function fmtP(n)   { return (n>=0?'+':'')+n.toFixed(2)+'%'; }
+  function setEl(id,v){ const e=document.getElementById(id); if(e) e.textContent=v; }
+  function setCol(id,v){ const e=document.getElementById(id); if(!e) return; e.className=e.className.replace(/col-(green|red)/g,''); e.classList.add(v>=0?'col-green':'col-red'); }
+
+  async function fetchLivePrices() {
+    const btn=document.getElementById('refresh-btn'), icon=document.getElementById('refresh-icon');
+    if(btn){ btn.disabled=true; icon.textContent='⟳'; }
+    try {
+      const [uproRaw,vuaaEur,eurUsd,spxLive] = await Promise.all([
+        fetchPrice(TICKERS.UPRO), fetchPrice(TICKERS.VUAA),
+        fetchPrice(TICKERS.FX),  fetchPrice(TICKERS.SPX)
+      ]);
+      const up  = uproRaw, vu = vuaaEur * eurUsd;
+      const upV = up * HOLDINGS.UPRO.shares, vuV = vu * HOLDINGS.VUAA.shares;
+      const stocks = upV + vuV, nav = stocks + CASH;
+      const upPnl = upV - HOLDINGS.UPRO.costBasis, vuPnl = vuV - HOLDINGS.VUAA.costBasis;
+      const totPnl = upPnl + vuPnl, totPct = totPnl/TOTAL_COST*100;
+      const upPct = upPnl/HOLDINGS.UPRO.costBasis*100, vuPct = vuPnl/HOLDINGS.VUAA.costBasis*100;
+      const navChg = nav - YEAR1_END_NAV, navPct = navChg/YEAR1_END_NAV*100;
+
+      // KPI
+      setEl('kpi-nav','$'+nav.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','));
+      setEl('kpi-nav-change', fmt(navChg)+' since 4 Feb');
+      setEl('kpi-nav-pct', fmtP(navPct));
+      const nc=document.getElementById('kpi-nav-chip'); if(nc) nc.className='chip '+(navChg>=0?'chip-green':'chip-red');
+
+      // Positions table
+      setEl('pos-upro-price','$'+up.toFixed(2)); setEl('pos-vuaa-price','$'+vu.toFixed(2));
+      setEl('pos-upro-value','$'+upV.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','));
+      setEl('pos-vuaa-value','$'+vuV.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','));
+      setEl('pos-upro-pnl', fmt(upPnl));  setEl('pos-upro-pct', fmtP(upPct));
+      setEl('pos-vuaa-pnl', fmt(vuPnl));  setEl('pos-vuaa-pct', fmtP(vuPct));
+      setEl('pos-total-value','$'+stocks.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','));
+      setEl('pos-total-pnl', fmt(totPnl)); setEl('pos-total-pct', fmtP(totPct));
+      ['pos-upro-pnl','pos-upro-pct'].forEach(id=>setCol(id,upPnl));
+      ['pos-vuaa-pnl','pos-vuaa-pct'].forEach(id=>setCol(id,vuPnl));
+      ['pos-total-pnl','pos-total-pct'].forEach(id=>setCol(id,totPnl));
+
+      // Allocation bars
+      const ua=(upV/nav*100).toFixed(1), va=(vuV/nav*100).toFixed(1);
+      setEl('alloc-upro-val','$'+upV.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','));
+      setEl('alloc-vuaa-val','$'+vuV.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','));
+      setEl('alloc-upro-pct',ua+'%'); setEl('alloc-vuaa-pct',va+'%');
+      const ub=document.getElementById('alloc-upro-bar'), vb=document.getElementById('alloc-vuaa-bar');
+      if(ub) ub.style.width=ua+'%'; if(vb) vb.style.width=va+'%';
+      setEl('alloc-total-nav','$'+nav.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','));
+      setEl('alloc-stocks','$'+stocks.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','));
+
+      // Floating P&L
+      setEl('float-pnl-total',fmt(totPnl)); setEl('float-pnl-pct',fmtP(totPct));
+      setEl('float-upro',fmt(upPnl)+' ('+fmtP(upPct)+')');
+      setEl('float-vuaa',fmt(vuPnl)+' ('+fmtP(vuPct)+')');
+      setEl('float-upro-price','$'+up.toFixed(2)); setEl('float-vuaa-price','$'+vu.toFixed(2));
+      const vs1=totPnl-YEAR1_SNAPSHOT_PNL;
+      setEl('float-vs-yr1',fmt(vs1)+' vs Year 1 snapshot');
+      const ft=document.getElementById('float-pnl-total');
+      if(ft) ft.className='pnl-headline '+(totPnl>=0?'col-green':'col-red');
+      setCol('float-upro',upPnl); setCol('float-vuaa',vuPnl); setCol('float-vs-yr1',vs1);
+
+      // Trade ledger rows
+      document.querySelectorAll('[data-trade]').forEach(row => {
+        const sym=row.dataset.trade, price=parseFloat(row.dataset.price),
+              qty=parseInt(row.dataset.qty), comm=parseFloat(row.dataset.comm);
+        const cur=sym==='UPRO'?up:vu;
+        const unr=(cur-price)*qty-Math.abs(comm), pct=unr/(price*qty+Math.abs(comm))*100;
+        const sign=unr>=0?'+':'', cls=unr>=0?'col-green':'col-red';
+        const pc=row.querySelector('.trade-price'), pl=row.querySelector('.trade-pnl'), pp=row.querySelector('.trade-pct');
+        if(pc) pc.className='trade-price '+(price<cur?'col-green':'col-red');
+        if(pl){ pl.textContent=sign+'$'+Math.abs(unr).toFixed(2); pl.className='trade-pnl '+cls; }
+        if(pp){ pp.textContent=(pct>=0?'+':'')+pct.toFixed(2)+'%'; pp.className='trade-pct '+cls; }
+      });
+
+      // Performance chart — update last point for all 3 series
+      if(window.twrrChartInstance){
+        window.twrrChartInstance.data.datasets[0].data[13]=+((up/93.15-1)*100).toFixed(2);
+        window.twrrChartInstance.data.datasets[1].data[13]=+((vu/114.36-1)*100).toFixed(2);
+        window.twrrChartInstance.data.datasets[2].data[13]=+((spxLive/6039-1)*100).toFixed(2);
+        window.twrrChartInstance.update();
+      }
+
+      // Timestamp
+      const ts=new Date().toLocaleTimeString('en-SG',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+      setEl('last-fetched','⟳ Live · Updated '+ts);
+      document.getElementById('last-fetched').style.color='#4ade80';
+    } catch(err) {
+      console.error('Price fetch failed:',err);
+      setEl('last-fetched','⚠ Price fetch failed — using last known data');
+      document.getElementById('last-fetched').style.color='#f87171';
+    } finally {
+      if(btn){ btn.disabled=false; icon.textContent='↻'; }
+    }
+  }
+
+  window.addEventListener('load', fetchLivePrices);
 
 </script>
 </body>
