@@ -123,117 +123,175 @@
   });
 
 
-  // ── LIVE PRICE FETCHING ────────────────────────────────────────────────
-  const HOLDINGS = { UPRO: { shares: 74, costBasis: 6756.44 }, VUAA: { shares: 59, costBasis: 7155.90 } };
-  const CASH          = 124.65;
-  const YEAR1_END_NAV = 15163.75;
-  const TOTAL_COST    = 13912.34;
-  const YEAR1_SNAPSHOT_PNL = 2134.21;
-  const YF = 'https://query1.finance.yahoo.com/v8/finance/chart/';
-  const TICKERS = { UPRO: 'UPRO', VUAA: 'VUAA.AS', FX: 'EURUSD=X', SPX: '%5EGSPC' };
+  // ── PRICE INITIALISATION — data injected by GitHub Actions daily ───────
+  // Reads from <script id="price-data"> block updated by scripts/update_prices.py
 
-  async function fetchPrice(ticker) {
-    const res  = await fetch(YF + ticker + '?interval=1d&range=1d');
-    if (!res.ok) throw new Error('HTTP ' + res.status + ' for ' + ticker);
-    const data = await res.json();
-    return data.chart.result[0].meta.regularMarketPrice;
-  }
+  function initPrices() {
+    const raw = document.getElementById('price-data');
+    if (!raw) return;
+    const d = JSON.parse(raw.textContent);
 
-  function fmt(n)    { const a = Math.abs(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','); return (n>=0?'+':'-')+'$'+a; }
-  function fmtP(n)   { return (n>=0?'+':'')+n.toFixed(2)+'%'; }
-  function setEl(id,v){ const e=document.getElementById(id); if(e) e.textContent=v; }
-  function setCol(id,v){ const e=document.getElementById(id); if(!e) return; e.className=e.className.replace(/col-(green|red)/g,''); e.classList.add(v>=0?'col-green':'col-red'); }
+    function fmt(n)  { const a=Math.abs(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','); return (n>=0?'+':'-')+'$'+a; }
+    function fmtP(n) { return (n>=0?'+':'')+n.toFixed(2)+'%'; }
+    function fmtAbs(n){ return '$'+n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','); }
+    function setEl(id,v){ const e=document.getElementById(id); if(e) e.textContent=v; }
+    function setCol(id,v){ const e=document.getElementById(id); if(!e)return; e.className=e.className.replace(/col-(green|red)/g,''); e.classList.add(v>=0?'col-green':'col-red'); }
 
-  async function fetchLivePrices() {
-    const btn=document.getElementById('refresh-btn'), icon=document.getElementById('refresh-icon');
-    if(btn){ btn.disabled=true; icon.textContent='⟳'; }
-    try {
-      const [uproRaw,vuaaEur,eurUsd,spxLive] = await Promise.all([
-        fetchPrice(TICKERS.UPRO), fetchPrice(TICKERS.VUAA),
-        fetchPrice(TICKERS.FX),  fetchPrice(TICKERS.SPX)
-      ]);
-      const up  = uproRaw, vu = vuaaEur * eurUsd;
-      const upV = up * HOLDINGS.UPRO.shares, vuV = vu * HOLDINGS.VUAA.shares;
-      const stocks = upV + vuV, nav = stocks + CASH;
-      const upPnl = upV - HOLDINGS.UPRO.costBasis, vuPnl = vuV - HOLDINGS.VUAA.costBasis;
-      const totPnl = upPnl + vuPnl, totPct = totPnl/TOTAL_COST*100;
-      const upPct = upPnl/HOLDINGS.UPRO.costBasis*100, vuPct = vuPnl/HOLDINGS.VUAA.costBasis*100;
-      const navChg = nav - YEAR1_END_NAV, navPct = navChg/YEAR1_END_NAV*100;
+    // KPI
+    setEl('kpi-nav', fmtAbs(d.nav));
+    setEl('kpi-nav-change', fmt(d.nav_change)+' since 4 Feb');
+    setEl('kpi-nav-pct', fmtP(d.nav_change_pct));
+    const nc=document.getElementById('kpi-nav-chip');
+    if(nc) nc.className='chip '+(d.nav_change>=0?'chip-green':'chip-red');
 
-      // KPI
-      setEl('kpi-nav','$'+nav.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','));
-      setEl('kpi-nav-change', fmt(navChg)+' since 4 Feb');
-      setEl('kpi-nav-pct', fmtP(navPct));
-      const nc=document.getElementById('kpi-nav-chip'); if(nc) nc.className='chip '+(navChg>=0?'chip-green':'chip-red');
+    // Positions table
+    setEl('pos-upro-price', '$'+d.upro_price.toFixed(2));
+    setEl('pos-vuaa-price', '$'+d.vuaa_price.toFixed(2));
+    setEl('pos-upro-value', fmtAbs(d.upro_value));
+    setEl('pos-vuaa-value', fmtAbs(d.vuaa_value));
+    setEl('pos-upro-pnl',   fmt(d.upro_pnl));    setEl('pos-upro-pct', fmtP(d.upro_pnl_pct));
+    setEl('pos-vuaa-pnl',   fmt(d.vuaa_pnl));    setEl('pos-vuaa-pct', fmtP(d.vuaa_pnl_pct));
+    setEl('pos-total-value',fmtAbs(d.stocks_total));
+    setEl('pos-total-pnl',  fmt(d.total_pnl));   setEl('pos-total-pct', fmtP(d.total_pnl_pct));
+    ['pos-upro-pnl','pos-upro-pct'].forEach(id=>setCol(id,d.upro_pnl));
+    ['pos-vuaa-pnl','pos-vuaa-pct'].forEach(id=>setCol(id,d.vuaa_pnl));
+    ['pos-total-pnl','pos-total-pct'].forEach(id=>setCol(id,d.total_pnl));
 
-      // Positions table
-      setEl('pos-upro-price','$'+up.toFixed(2)); setEl('pos-vuaa-price','$'+vu.toFixed(2));
-      setEl('pos-upro-value','$'+upV.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','));
-      setEl('pos-vuaa-value','$'+vuV.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','));
-      setEl('pos-upro-pnl', fmt(upPnl));  setEl('pos-upro-pct', fmtP(upPct));
-      setEl('pos-vuaa-pnl', fmt(vuPnl));  setEl('pos-vuaa-pct', fmtP(vuPct));
-      setEl('pos-total-value','$'+stocks.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','));
-      setEl('pos-total-pnl', fmt(totPnl)); setEl('pos-total-pct', fmtP(totPct));
-      ['pos-upro-pnl','pos-upro-pct'].forEach(id=>setCol(id,upPnl));
-      ['pos-vuaa-pnl','pos-vuaa-pct'].forEach(id=>setCol(id,vuPnl));
-      ['pos-total-pnl','pos-total-pct'].forEach(id=>setCol(id,totPnl));
+    // Allocation bars
+    const upA=(d.upro_value/d.nav*100).toFixed(1), vuA=(d.vuaa_value/d.nav*100).toFixed(1);
+    setEl('alloc-upro-val', fmtAbs(d.upro_value)); setEl('alloc-vuaa-val', fmtAbs(d.vuaa_value));
+    setEl('alloc-upro-pct', upA+'%');  setEl('alloc-vuaa-pct', vuA+'%');
+    const ub=document.getElementById('alloc-upro-bar'), vb=document.getElementById('alloc-vuaa-bar');
+    if(ub) ub.style.width=upA+'%';  if(vb) vb.style.width=vuA+'%';
+    setEl('alloc-total-nav', fmtAbs(d.nav));
+    setEl('alloc-stocks', fmtAbs(d.stocks_total));
 
-      // Allocation bars
-      const ua=(upV/nav*100).toFixed(1), va=(vuV/nav*100).toFixed(1);
-      setEl('alloc-upro-val','$'+upV.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','));
-      setEl('alloc-vuaa-val','$'+vuV.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','));
-      setEl('alloc-upro-pct',ua+'%'); setEl('alloc-vuaa-pct',va+'%');
-      const ub=document.getElementById('alloc-upro-bar'), vb=document.getElementById('alloc-vuaa-bar');
-      if(ub) ub.style.width=ua+'%'; if(vb) vb.style.width=va+'%';
-      setEl('alloc-total-nav','$'+nav.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','));
-      setEl('alloc-stocks','$'+stocks.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','));
+    // Floating P&L
+    setEl('float-pnl-total', fmt(d.total_pnl));   setEl('float-pnl-pct', fmtP(d.total_pnl_pct));
+    setEl('float-upro', fmt(d.upro_pnl)+' ('+fmtP(d.upro_pnl_pct)+')');
+    setEl('float-vuaa', fmt(d.vuaa_pnl)+' ('+fmtP(d.vuaa_pnl_pct)+')');
+    setEl('float-upro-price', '$'+d.upro_price.toFixed(2));
+    setEl('float-vuaa-price', '$'+d.vuaa_price.toFixed(2));
+    setEl('float-vs-yr1', fmt(d.vs_yr1)+' vs Year 1 snapshot');
+    const ft=document.getElementById('float-pnl-total');
+    if(ft) ft.className='pnl-headline '+(d.total_pnl>=0?'col-green':'col-red');
+    setCol('float-upro',d.upro_pnl); setCol('float-vuaa',d.vuaa_pnl); setCol('float-vs-yr1',d.vs_yr1);
 
-      // Floating P&L
-      setEl('float-pnl-total',fmt(totPnl)); setEl('float-pnl-pct',fmtP(totPct));
-      setEl('float-upro',fmt(upPnl)+' ('+fmtP(upPct)+')');
-      setEl('float-vuaa',fmt(vuPnl)+' ('+fmtP(vuPct)+')');
-      setEl('float-upro-price','$'+up.toFixed(2)); setEl('float-vuaa-price','$'+vu.toFixed(2));
-      const vs1=totPnl-YEAR1_SNAPSHOT_PNL;
-      setEl('float-vs-yr1',fmt(vs1)+' vs Year 1 snapshot');
-      const ft=document.getElementById('float-pnl-total');
-      if(ft) ft.className='pnl-headline '+(totPnl>=0?'col-green':'col-red');
-      setCol('float-upro',upPnl); setCol('float-vuaa',vuPnl); setCol('float-vs-yr1',vs1);
+    // Trade ledger rows — colour prices and P&L relative to live prices
+    const UPRO_COST_BASIS = 13912.34;
+    document.querySelectorAll('[data-trade]').forEach(row => {
+      const sym=row.dataset.trade, price=parseFloat(row.dataset.price),
+            qty=parseInt(row.dataset.qty), comm=parseFloat(row.dataset.comm);
+      const cur = sym==='UPRO' ? d.upro_price : d.vuaa_price;
+      const unr=(cur-price)*qty-Math.abs(comm), pct=unr/(price*qty+Math.abs(comm))*100;
+      const sign=unr>=0?'+':'', cls=unr>=0?'col-green':'col-red';
+      const pc=row.querySelector('.trade-price'), pl=row.querySelector('.trade-pnl'), pp=row.querySelector('.trade-pct');
+      if(pc) pc.className='trade-price '+(price<cur?'col-green':'col-red');
+      if(pl){ pl.textContent=sign+'$'+Math.abs(unr).toFixed(2); pl.className='trade-pnl '+cls; }
+      if(pp){ pp.textContent=(pct>=0?'+':'')+pct.toFixed(2)+'%'; pp.className='trade-pct '+cls; }
+    });
 
-      // Trade ledger rows
-      document.querySelectorAll('[data-trade]').forEach(row => {
-        const sym=row.dataset.trade, price=parseFloat(row.dataset.price),
-              qty=parseInt(row.dataset.qty), comm=parseFloat(row.dataset.comm);
-        const cur=sym==='UPRO'?up:vu;
-        const unr=(cur-price)*qty-Math.abs(comm), pct=unr/(price*qty+Math.abs(comm))*100;
-        const sign=unr>=0?'+':'', cls=unr>=0?'col-green':'col-red';
-        const pc=row.querySelector('.trade-price'), pl=row.querySelector('.trade-pnl'), pp=row.querySelector('.trade-pct');
-        if(pc) pc.className='trade-price '+(price<cur?'col-green':'col-red');
-        if(pl){ pl.textContent=sign+'$'+Math.abs(unr).toFixed(2); pl.className='trade-pnl '+cls; }
-        if(pp){ pp.textContent=(pct>=0?'+':'')+pct.toFixed(2)+'%'; pp.className='trade-pct '+cls; }
-      });
-
-      // Performance chart — update last point for all 3 series
-      if(window.twrrChartInstance){
-        window.twrrChartInstance.data.datasets[0].data[13]=+((up/93.15-1)*100).toFixed(2);
-        window.twrrChartInstance.data.datasets[1].data[13]=+((vu/114.36-1)*100).toFixed(2);
-        window.twrrChartInstance.data.datasets[2].data[13]=+((spxLive/6039-1)*100).toFixed(2);
-        window.twrrChartInstance.update();
-      }
-
-      // Timestamp
-      const ts=new Date().toLocaleTimeString('en-SG',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-      setEl('last-fetched','⟳ Live · Updated '+ts);
-      document.getElementById('last-fetched').style.color='#4ade80';
-    } catch(err) {
-      console.error('Price fetch failed:',err);
-      setEl('last-fetched','⚠ Price fetch failed — using last known data');
-      document.getElementById('last-fetched').style.color='#f87171';
-    } finally {
-      if(btn){ btn.disabled=false; icon.textContent='↻'; }
+    // Performance chart — update last data point
+    if(window.twrrChartInstance){
+      window.twrrChartInstance.data.datasets[0].data[13]=+((d.upro_price/93.15-1)*100).toFixed(2);
+      window.twrrChartInstance.data.datasets[1].data[13]=+((d.vuaa_price/114.36-1)*100).toFixed(2);
+      window.twrrChartInstance.data.datasets[2].data[13]=+((d.spx_price/6039-1)*100).toFixed(2);
+      window.twrrChartInstance.update();
     }
+
+    // Update last-updated in header
+    setEl('last-fetched', '✓ Prices as of ' + d.last_updated + ' · Auto-updated daily');
+    const lf=document.getElementById('last-fetched'); if(lf) lf.style.color='#4ade80';
   }
 
-  window.addEventListener('load', fetchLivePrices);
+  window.addEventListener('load', initPrices);
+
+
+
+  // ── NAV vs Cumulative Deposits Chart ──────────────────────────────────────
+  const navData = [994.55,1917.23,2377.09,4054.42,5531.01,7029.20,8175.43,9639.58,11277.98,12397.51,13589.81,14671.77,15323.60,15302.93];
+  const depData = [1000,2000,3000,4000,5000,6000,7000,8000,9000,10000,11000,12000,13000,14000];
+
+  new Chart(document.getElementById('navDepositsChart'), {
+    type: 'line',
+    data: {
+      labels: twrrLabels,
+      datasets: [
+        {
+          label: 'NAV (approx)',
+          data: navData,
+          borderColor: '#38bdf8',
+          backgroundColor: 'rgba(56,189,248,0.10)',
+          borderWidth: 2.5,
+          pointRadius: 4,
+          pointBackgroundColor: '#38bdf8',
+          pointBorderColor: '#020817',
+          pointBorderWidth: 1.5,
+          pointHoverRadius: 7,
+          tension: 0.35,
+          fill: '+1',
+          order: 1,
+        },
+        {
+          label: 'Cumulative Deposits',
+          data: depData,
+          borderColor: 'rgba(148,163,184,0.55)',
+          backgroundColor: 'rgba(15,23,42,0.0)',
+          borderWidth: 2,
+          borderDash: [5,4],
+          pointRadius: 2.5,
+          pointBackgroundColor: 'rgba(148,163,184,0.5)',
+          pointHoverRadius: 5,
+          tension: 0.35,
+          fill: false,
+          order: 2,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: 'rgba(6,13,26,0.96)',
+          borderColor: 'rgba(255,255,255,0.1)',
+          borderWidth: 1,
+          padding: 12,
+          titleColor: '#e2e8f0',
+          bodyColor: '#94a3b8',
+          callbacks: {
+            label: ctx => {
+              const v = '$' + ctx.raw.toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
+              return ' ' + ctx.dataset.label + ': ' + v;
+            },
+            afterBody: items => {
+              const nav = items.find(i => i.dataset.label === 'NAV (approx)');
+              const dep = items.find(i => i.dataset.label === 'Cumulative Deposits');
+              if (nav && dep) {
+                const spread = nav.raw - dep.raw;
+                const sign = spread >= 0 ? '+' : '';
+                const col  = spread >= 0 ? '▲' : '▼';
+                return [' ' + col + ' Spread: ' + sign + '$' + Math.abs(spread).toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 })];
+              }
+              return [];
+            }
+          }
+        }
+      },
+      scales: {
+        x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#475569' } },
+        y: {
+          grid: { color: 'rgba(255,255,255,0.04)' },
+          ticks: {
+            color: '#475569',
+            callback: v => '$' + (v >= 1000 ? (v/1000).toFixed(0) + 'k' : v)
+          },
+          beginAtZero: true
+        }
+      }
+    }
+  });
 
 </script>
 
@@ -457,6 +515,29 @@
     /* ── FOOTER ── */
     .footer-note { text-align: center; font-size: 11px; color: rgba(100,116,139,0.4); letter-spacing: 0.06em; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.03); }
   </style>
+<!-- PRICE_DATA_START -->
+<script id="price-data" type="application/json">
+{
+  "upro_price": 103.01,
+  "vuaa_price": 128.06,
+  "spx_price": 6670.65,
+  "nav": 15302.93,
+  "nav_change": 139.18,
+  "nav_change_pct": 0.92,
+  "upro_value": 7622.74,
+  "vuaa_value": 7555.54,
+  "stocks_total": 15178.28,
+  "upro_pnl": 866.3,
+  "vuaa_pnl": 399.64,
+  "total_pnl": 1265.94,
+  "upro_pnl_pct": 12.82,
+  "vuaa_pnl_pct": 5.58,
+  "total_pnl_pct": 9.1,
+  "vs_yr1": -868.27,
+  "last_updated": "13 Mar 2026"
+}
+</script>
+<!-- PRICE_DATA_END -->
 </head>
 <body>
 <div class="wrap">
@@ -494,7 +575,7 @@
       <div style="font-size:10px;margin-top:6px;text-align:right;line-height:1.6;">
         Base Currency: USD
       </div>
-      <button id="refresh-btn" onclick="fetchLivePrices()" style="
+      <button id="refresh-btn" onclick="window.open('../../actions','_blank')" title="Prices updated via GitHub Actions daily" style="
         margin-top:8px;
         font-family:var(--font);font-size:11px;font-weight:600;
         letter-spacing:0.1em;text-transform:uppercase;
@@ -503,7 +584,7 @@
         color:var(--accent);background:rgba(56,189,248,0.08);
         transition:all 0.2s;display:flex;align-items:center;gap:6px;
       ">
-        <span id="refresh-icon">↻</span> Refresh Prices
+        <span id="refresh-icon">✓</span> Auto-updated Daily
       </button>
       <div id="last-fetched" style="font-size:10px;color:var(--muted);text-align:right;margin-top:4px;"></div>
     </div>
@@ -546,6 +627,35 @@
     </article>
   </section>
 
+
+      <!-- NAV vs Cumulative Deposits Chart -->
+      <section>
+        <div class="section-heading">
+          <div class="section-heading-left">
+            <div class="section-title">NAV vs Cumulative Deposits</div>
+            <div class="section-subtitle">Estimated NAV at each DCA date · Shaded area = unrealised profit · Approx using DCA buy prices · Last point anchored to IB statement</div>
+          </div>
+          <span class="chip chip-green" id="nav-spread-chip"><span class="chip-dot"></span>+$1,302.93 spread</span>
+        </div>
+        <div class="chart-card">
+          <div class="chart-card-header">
+            <div>
+              <div class="chart-card-title">NAV vs Cumulative Deposits</div>
+              <div class="chart-card-sub">Blue area = portfolio value above cost · Dashed line = total capital deployed · Tooltip shows spread at each month</div>
+            </div>
+            <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+              <span style="display:flex;align-items:center;gap:5px;font-size:10px;color:#94a3b8;"><span style="width:14px;height:2px;background:#38bdf8;display:inline-block;border-radius:2px;"></span>NAV (approx)</span>
+              <span style="display:flex;align-items:center;gap:5px;font-size:10px;color:#94a3b8;"><span style="width:14px;height:2px;background:rgba(148,163,184,0.5);display:inline-block;border-radius:2px;border-top:2px dashed rgba(148,163,184,0.6);"></span>Cumulative Deposits</span>
+            </div>
+          </div>
+          <canvas id="navDepositsChart" height="100"></canvas>
+          <div style="margin-top:10px;padding:8px 12px;border-radius:6px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);font-size:10px;color:#7a94b0;display:flex;gap:20px;flex-wrap:wrap;">
+            <span>📌 NAV approximated using each month's DCA buy price for all held shares</span>
+            <span>📌 Final Mar '26 point uses actual IB statement NAV of $15,302.93</span>
+            <span>📌 Apr '25 dip visible — NAV briefly dropped below deposits during tariff crash</span>
+          </div>
+        </div>
+      </section>
 
       <!-- TWRR vs SPX Chart -->
       <section>
@@ -595,65 +705,6 @@
   <section class="main-grid">
     <div class="vstack">
 
-      <!-- Open Positions -->
-      <div>
-        <div class="section-heading">
-          <div class="section-heading-left">
-            <div class="section-title">Open Positions</div>
-            <div class="section-subtitle">Current holdings as at 13 Mar 2026 · Updated after March DCA</div>
-          </div>
-          <span class="chip chip-blue"><span class="chip-dot"></span>Live snapshot</span>
-        </div>
-        <div class="tbl-wrap">
-          <div class="tbl-head">
-            <div class="tbl-head-left">
-              <div class="tbl-head-title">UPRO &amp; VUAA</div>
-              <div class="tbl-head-sub">Cost basis includes all commissions</div>
-            </div>
-            <span class="chip chip-green"><span class="chip-dot"></span>+$1,265.94 total</span>
-          </div>
-          <table>
-            <thead>
-              <tr>
-                <th>Symbol</th><th>Shares</th><th>Avg Cost</th><th>Cost Basis</th>
-                <th>Last Price</th><th>Market Value</th><th>Unrealized P&amp;L</th><th>Return</th>
-              </tr>
-            </thead>
-                        <tbody>
-              <tr data-trade="UPRO" data-price="93.15" data-qty="5" data-comm="-1.09"><td>5 Feb 2025</td><td>UPRO</td><td><span style="font-size:9px;color:var(--muted);">Year 1</span></td><td>5</td><td class="trade-price col-green">$93.15</td><td>-1.09</td><td class="trade-pnl col-green">+$48.21</td><td class="trade-pct col-green">+10.33%</td></tr>
-              <tr data-trade="VUAA" data-price="114.36" data-qty="4" data-comm="-4.36"><td>5 Feb 2025</td><td>VUAA</td><td><span style="font-size:9px;color:var(--muted);">Year 1</span></td><td>4</td><td class="trade-price col-green">$114.36</td><td>-4.36</td><td class="trade-pnl col-green">+$50.44</td><td class="trade-pct col-green">+10.92%</td></tr>
-              <tr data-trade="UPRO" data-price="82.0" data-qty="6" data-comm="-1.09"><td>5 Mar 2025</td><td>UPRO</td><td><span style="font-size:9px;color:var(--muted);">Year 1</span></td><td>6</td><td class="trade-price col-green">$82.00</td><td>-1.09</td><td class="trade-pnl col-green">+$124.97</td><td class="trade-pct col-green">+25.34%</td></tr>
-              <tr data-trade="VUAA" data-price="110.33" data-qty="5" data-comm="-4.36"><td>5 Mar 2025</td><td>VUAA</td><td><span style="font-size:9px;color:var(--muted);">Year 1</span></td><td>5</td><td class="trade-price col-green">$110.33</td><td>-4.36</td><td class="trade-pnl col-green">+$84.29</td><td class="trade-pct col-green">+15.16%</td></tr>
-              <tr data-trade="UPRO" data-price="47.44" data-qty="10" data-comm="-1.09"><td>7 Apr 2025</td><td>UPRO</td><td><span style="font-size:9px;color:var(--muted);">Year 1</span></td><td>10</td><td class="trade-price col-green">$47.44</td><td>-1.09</td><td class="trade-pnl col-green">+$554.61</td><td class="trade-pct col-green">+116.64%</td></tr>
-              <tr data-trade="VUAA" data-price="93.16" data-qty="5" data-comm="-4.36"><td>7 Apr 2025</td><td>VUAA</td><td><span style="font-size:9px;color:var(--muted);">Year 1</span></td><td>5</td><td class="trade-price col-green">$93.16</td><td>-4.36</td><td class="trade-pnl col-green">+$170.14</td><td class="trade-pct col-green">+36.19%</td></tr>
-              <tr data-trade="UPRO" data-price="70.34" data-qty="7" data-comm="-1.09"><td>5 May 2025</td><td>UPRO</td><td><span style="font-size:9px;color:var(--muted);">Year 1</span></td><td>7</td><td class="trade-price col-green">$70.34</td><td>-1.09</td><td class="trade-pnl col-green">+$227.60</td><td class="trade-pct col-green">+46.12%</td></tr>
-              <tr data-trade="VUAA" data-price="107.58" data-qty="5" data-comm="-4.36"><td>6 May 2025</td><td>VUAA</td><td><span style="font-size:9px;color:var(--muted);">Year 1</span></td><td>5</td><td class="trade-price col-green">$107.58</td><td>-4.36</td><td class="trade-pnl col-green">+$98.04</td><td class="trade-pct col-green">+18.08%</td></tr>
-              <tr data-trade="UPRO" data-price="83.05" data-qty="8" data-comm="-1.09"><td>5 Jun 2025</td><td>UPRO</td><td><span style="font-size:9px;color:var(--muted);">Year 1</span></td><td>8</td><td class="trade-price col-green">$83.05</td><td>-1.09</td><td class="trade-pnl col-green">+$158.59</td><td class="trade-pct col-green">+23.83%</td></tr>
-              <tr data-trade="VUAA" data-price="114.22" data-qty="3" data-comm="-4.36"><td>5 Jun 2025</td><td>VUAA</td><td><span style="font-size:9px;color:var(--muted);">Year 1</span></td><td>3</td><td class="trade-price col-green">$114.22</td><td>-4.36</td><td class="trade-pnl col-green">+$37.16</td><td class="trade-pct col-green">+10.71%</td></tr>
-              <tr data-trade="UPRO" data-price="93.63" data-qty="4" data-comm="-1.09"><td>7 Jul 2025</td><td>UPRO</td><td><span style="font-size:9px;color:var(--muted);">Year 1</span></td><td>4</td><td class="trade-price col-green">$93.63</td><td>-1.09</td><td class="trade-pnl col-green">+$36.43</td><td class="trade-pct col-green">+9.70%</td></tr>
-              <tr data-trade="VUAA" data-price="119.8" data-qty="5" data-comm="-4.36"><td>7 Jul 2025</td><td>VUAA</td><td><span style="font-size:9px;color:var(--muted);">Year 1</span></td><td>5</td><td class="trade-price col-green">$119.80</td><td>-4.36</td><td class="trade-pnl col-green">+$36.94</td><td class="trade-pct col-green">+6.12%</td></tr>
-              <tr data-trade="UPRO" data-price="96.45" data-qty="5" data-comm="-1.09"><td>5 Aug 2025</td><td>UPRO</td><td><span style="font-size:9px;color:var(--muted);">Year 1</span></td><td>5</td><td class="trade-price col-green">$96.45</td><td>-1.09</td><td class="trade-pnl col-green">+$31.71</td><td class="trade-pct col-green">+6.56%</td></tr>
-              <tr data-trade="VUAA" data-price="121.24" data-qty="4" data-comm="-4.36"><td>5 Aug 2025</td><td>VUAA</td><td><span style="font-size:9px;color:var(--muted);">Year 1</span></td><td>4</td><td class="trade-price col-green">$121.24</td><td>-4.36</td><td class="trade-pnl col-green">+$22.92</td><td class="trade-pct col-green">+4.68%</td></tr>
-              <tr data-trade="UPRO" data-price="104.44" data-qty="5" data-comm="-1.09"><td>5 Sep 2025</td><td>UPRO</td><td><span style="font-size:9px;color:var(--muted);">Year 1</span></td><td>5</td><td class="trade-price col-red">$104.44</td><td>-1.09</td><td class="trade-pnl col-red">$8.24</td><td class="trade-pct col-red">1.57%</td></tr>
-              <tr data-trade="VUAA" data-price="124.79" data-qty="4" data-comm="-4.36"><td>5 Sep 2025</td><td>VUAA</td><td><span style="font-size:9px;color:var(--muted);">Year 1</span></td><td>4</td><td class="trade-price col-green">$124.79</td><td>-4.36</td><td class="trade-pnl col-green">+$8.72</td><td class="trade-pct col-green">+1.73%</td></tr>
-              <tr data-trade="UPRO" data-price="114.16" data-qty="4" data-comm="-1.09"><td>6 Oct 2025</td><td>UPRO</td><td><span style="font-size:9px;color:var(--muted);">Year 1</span></td><td>4</td><td class="trade-price col-red">$114.16</td><td>-1.09</td><td class="trade-pnl col-red">$45.69</td><td class="trade-pct col-red">9.98%</td></tr>
-              <tr data-trade="VUAA" data-price="129.3" data-qty="4" data-comm="-4.36"><td>6 Oct 2025</td><td>VUAA</td><td><span style="font-size:9px;color:var(--muted);">Year 1</span></td><td>4</td><td class="trade-price col-red">$129.30</td><td>-4.36</td><td class="trade-pnl col-red">$9.32</td><td class="trade-pct col-red">1.79%</td></tr>
-              <tr data-trade="UPRO" data-price="115.68" data-qty="4" data-comm="-1.09"><td>5 Nov 2025</td><td>UPRO</td><td><span style="font-size:9px;color:var(--muted);">Year 1</span></td><td>4</td><td class="trade-price col-red">$115.68</td><td>-1.09</td><td class="trade-pnl col-red">$51.77</td><td class="trade-pct col-red">11.16%</td></tr>
-              <tr data-trade="VUAA" data-price="130.4" data-qty="4" data-comm="-4.36"><td>5 Nov 2025</td><td>VUAA</td><td><span style="font-size:9px;color:var(--muted);">Year 1</span></td><td>4</td><td class="trade-price col-red">$130.40</td><td>-4.36</td><td class="trade-pnl col-red">$13.72</td><td class="trade-pct col-red">2.61%</td></tr>
-              <tr data-trade="UPRO" data-price="117.97" data-qty="4" data-comm="-1.09"><td>5 Dec 2025</td><td>UPRO</td><td><span style="font-size:9px;color:var(--muted);">Year 1</span></td><td>4</td><td class="trade-price col-red">$117.97</td><td>-1.09</td><td class="trade-pnl col-red">$60.93</td><td class="trade-pct col-red">12.88%</td></tr>
-              <tr data-trade="VUAA" data-price="131.91" data-qty="4" data-comm="-4.36"><td>5 Dec 2025</td><td>VUAA</td><td><span style="font-size:9px;color:var(--muted);">Year 1</span></td><td>4</td><td class="trade-price col-red">$131.91</td><td>-4.36</td><td class="trade-pnl col-red">$19.76</td><td class="trade-pct col-red">3.71%</td></tr>
-              <tr data-trade="UPRO" data-price="118.69" data-qty="4" data-comm="-1.09"><td>6 Jan 2026</td><td>UPRO</td><td><span style="font-size:9px;color:var(--muted);">Year 1</span></td><td>4</td><td class="trade-price col-red">$118.69</td><td>-1.09</td><td class="trade-pnl col-red">$63.81</td><td class="trade-pct col-red">13.41%</td></tr>
-              <tr data-trade="VUAA" data-price="132.82" data-qty="4" data-comm="-4.36"><td>6 Jan 2026</td><td>VUAA</td><td><span style="font-size:9px;color:var(--muted);">Year 1</span></td><td>4</td><td class="trade-price col-red">$132.82</td><td>-4.36</td><td class="trade-pnl col-red">$23.40</td><td class="trade-pct col-red">4.37%</td></tr>
-              <tr class="yr2-row" data-trade="UPRO" data-price="113.76" data-qty="4" data-comm="-1.09"><td>5 Feb 2026</td><td>UPRO</td><td><span class="yr2-label">Year 2</span></td><td>4</td><td class="trade-price col-red">$113.76</td><td>-1.09</td><td class="trade-pnl col-red">$44.09</td><td class="trade-pct col-red">9.67%</td></tr>
-              <tr class="yr2-row" data-trade="VUAA" data-price="132.48" data-qty="4" data-comm="-4.36"><td>5 Feb 2026</td><td>VUAA</td><td><span class="yr2-label">Year 2</span></td><td>4</td><td class="trade-price col-red">$132.48</td><td>-4.36</td><td class="trade-pnl col-red">$22.04</td><td class="trade-pct col-red">4.13%</td></tr>
-              <tr class="yr2-row" data-trade="UPRO" data-price="113.06" data-qty="4" data-comm="-1.09"><td>5 Mar 2026</td><td>UPRO</td><td><span class="yr2-label">Year 2</span></td><td>4</td><td class="trade-price col-red">$113.06</td><td>-1.09</td><td class="trade-pnl col-red">$41.29</td><td class="trade-pct col-red">9.11%</td></tr>
-              <tr class="yr2-row" data-trade="VUAA" data-price="132.14" data-qty="4" data-comm="-4.36"><td>5 Mar 2026</td><td>VUAA</td><td><span class="yr2-label">Year 2</span></td><td>4</td><td class="trade-price col-red">$132.14</td><td>-4.36</td><td class="trade-pnl col-red">$20.68</td><td class="trade-pct col-red">3.88%</td></tr>
-              <tr class="total-row"><td>Total</td><td>—</td><td>—</td><td>133</td><td>—</td><td>-$76.30</td><td class="col-green">+$1,265.94</td><td class="col-green">+9.10%</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
       <!-- DCA Price History Chart -->
       <div class="chart-card">
         <div class="chart-card-header">
@@ -685,7 +736,7 @@
           </div>
           <table>
             <thead>
-              <tr><th>Date</th><th>Symbol</th><th>Period</th><th>Qty</th><th>Price</th><th>Proceeds</th><th>Comm</th></tr>
+              <tr><th>Date</th><th>Symbol</th><th>Period</th><th>Qty</th><th>Price</th><th>Comm</th><th>Unr. P&amp;L $</th><th>Unr. P&amp;L %</th></tr>
             </thead>
                                                 <tbody>
               <tr><td>5 Feb 2025</td><td>UPRO</td><td><span style="font-size:9px;color:var(--muted);">Year 1</span></td><td>5</td><td class="col-green">$93.15</td><td>-1.09</td><td class="col-green">+$48.21</td><td class="col-green">+10.33%</td></tr>
@@ -1217,117 +1268,175 @@
   });
 
 
-  // ── LIVE PRICE FETCHING ────────────────────────────────────────────────
-  const HOLDINGS = { UPRO: { shares: 74, costBasis: 6756.44 }, VUAA: { shares: 59, costBasis: 7155.90 } };
-  const CASH          = 124.65;
-  const YEAR1_END_NAV = 15163.75;
-  const TOTAL_COST    = 13912.34;
-  const YEAR1_SNAPSHOT_PNL = 2134.21;
-  const YF = 'https://query1.finance.yahoo.com/v8/finance/chart/';
-  const TICKERS = { UPRO: 'UPRO', VUAA: 'VUAA.AS', FX: 'EURUSD=X', SPX: '%5EGSPC' };
+  // ── PRICE INITIALISATION — data injected by GitHub Actions daily ───────
+  // Reads from <script id="price-data"> block updated by scripts/update_prices.py
 
-  async function fetchPrice(ticker) {
-    const res  = await fetch(YF + ticker + '?interval=1d&range=1d');
-    if (!res.ok) throw new Error('HTTP ' + res.status + ' for ' + ticker);
-    const data = await res.json();
-    return data.chart.result[0].meta.regularMarketPrice;
-  }
+  function initPrices() {
+    const raw = document.getElementById('price-data');
+    if (!raw) return;
+    const d = JSON.parse(raw.textContent);
 
-  function fmt(n)    { const a = Math.abs(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','); return (n>=0?'+':'-')+'$'+a; }
-  function fmtP(n)   { return (n>=0?'+':'')+n.toFixed(2)+'%'; }
-  function setEl(id,v){ const e=document.getElementById(id); if(e) e.textContent=v; }
-  function setCol(id,v){ const e=document.getElementById(id); if(!e) return; e.className=e.className.replace(/col-(green|red)/g,''); e.classList.add(v>=0?'col-green':'col-red'); }
+    function fmt(n)  { const a=Math.abs(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','); return (n>=0?'+':'-')+'$'+a; }
+    function fmtP(n) { return (n>=0?'+':'')+n.toFixed(2)+'%'; }
+    function fmtAbs(n){ return '$'+n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','); }
+    function setEl(id,v){ const e=document.getElementById(id); if(e) e.textContent=v; }
+    function setCol(id,v){ const e=document.getElementById(id); if(!e)return; e.className=e.className.replace(/col-(green|red)/g,''); e.classList.add(v>=0?'col-green':'col-red'); }
 
-  async function fetchLivePrices() {
-    const btn=document.getElementById('refresh-btn'), icon=document.getElementById('refresh-icon');
-    if(btn){ btn.disabled=true; icon.textContent='⟳'; }
-    try {
-      const [uproRaw,vuaaEur,eurUsd,spxLive] = await Promise.all([
-        fetchPrice(TICKERS.UPRO), fetchPrice(TICKERS.VUAA),
-        fetchPrice(TICKERS.FX),  fetchPrice(TICKERS.SPX)
-      ]);
-      const up  = uproRaw, vu = vuaaEur * eurUsd;
-      const upV = up * HOLDINGS.UPRO.shares, vuV = vu * HOLDINGS.VUAA.shares;
-      const stocks = upV + vuV, nav = stocks + CASH;
-      const upPnl = upV - HOLDINGS.UPRO.costBasis, vuPnl = vuV - HOLDINGS.VUAA.costBasis;
-      const totPnl = upPnl + vuPnl, totPct = totPnl/TOTAL_COST*100;
-      const upPct = upPnl/HOLDINGS.UPRO.costBasis*100, vuPct = vuPnl/HOLDINGS.VUAA.costBasis*100;
-      const navChg = nav - YEAR1_END_NAV, navPct = navChg/YEAR1_END_NAV*100;
+    // KPI
+    setEl('kpi-nav', fmtAbs(d.nav));
+    setEl('kpi-nav-change', fmt(d.nav_change)+' since 4 Feb');
+    setEl('kpi-nav-pct', fmtP(d.nav_change_pct));
+    const nc=document.getElementById('kpi-nav-chip');
+    if(nc) nc.className='chip '+(d.nav_change>=0?'chip-green':'chip-red');
 
-      // KPI
-      setEl('kpi-nav','$'+nav.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','));
-      setEl('kpi-nav-change', fmt(navChg)+' since 4 Feb');
-      setEl('kpi-nav-pct', fmtP(navPct));
-      const nc=document.getElementById('kpi-nav-chip'); if(nc) nc.className='chip '+(navChg>=0?'chip-green':'chip-red');
+    // Positions table
+    setEl('pos-upro-price', '$'+d.upro_price.toFixed(2));
+    setEl('pos-vuaa-price', '$'+d.vuaa_price.toFixed(2));
+    setEl('pos-upro-value', fmtAbs(d.upro_value));
+    setEl('pos-vuaa-value', fmtAbs(d.vuaa_value));
+    setEl('pos-upro-pnl',   fmt(d.upro_pnl));    setEl('pos-upro-pct', fmtP(d.upro_pnl_pct));
+    setEl('pos-vuaa-pnl',   fmt(d.vuaa_pnl));    setEl('pos-vuaa-pct', fmtP(d.vuaa_pnl_pct));
+    setEl('pos-total-value',fmtAbs(d.stocks_total));
+    setEl('pos-total-pnl',  fmt(d.total_pnl));   setEl('pos-total-pct', fmtP(d.total_pnl_pct));
+    ['pos-upro-pnl','pos-upro-pct'].forEach(id=>setCol(id,d.upro_pnl));
+    ['pos-vuaa-pnl','pos-vuaa-pct'].forEach(id=>setCol(id,d.vuaa_pnl));
+    ['pos-total-pnl','pos-total-pct'].forEach(id=>setCol(id,d.total_pnl));
 
-      // Positions table
-      setEl('pos-upro-price','$'+up.toFixed(2)); setEl('pos-vuaa-price','$'+vu.toFixed(2));
-      setEl('pos-upro-value','$'+upV.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','));
-      setEl('pos-vuaa-value','$'+vuV.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','));
-      setEl('pos-upro-pnl', fmt(upPnl));  setEl('pos-upro-pct', fmtP(upPct));
-      setEl('pos-vuaa-pnl', fmt(vuPnl));  setEl('pos-vuaa-pct', fmtP(vuPct));
-      setEl('pos-total-value','$'+stocks.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','));
-      setEl('pos-total-pnl', fmt(totPnl)); setEl('pos-total-pct', fmtP(totPct));
-      ['pos-upro-pnl','pos-upro-pct'].forEach(id=>setCol(id,upPnl));
-      ['pos-vuaa-pnl','pos-vuaa-pct'].forEach(id=>setCol(id,vuPnl));
-      ['pos-total-pnl','pos-total-pct'].forEach(id=>setCol(id,totPnl));
+    // Allocation bars
+    const upA=(d.upro_value/d.nav*100).toFixed(1), vuA=(d.vuaa_value/d.nav*100).toFixed(1);
+    setEl('alloc-upro-val', fmtAbs(d.upro_value)); setEl('alloc-vuaa-val', fmtAbs(d.vuaa_value));
+    setEl('alloc-upro-pct', upA+'%');  setEl('alloc-vuaa-pct', vuA+'%');
+    const ub=document.getElementById('alloc-upro-bar'), vb=document.getElementById('alloc-vuaa-bar');
+    if(ub) ub.style.width=upA+'%';  if(vb) vb.style.width=vuA+'%';
+    setEl('alloc-total-nav', fmtAbs(d.nav));
+    setEl('alloc-stocks', fmtAbs(d.stocks_total));
 
-      // Allocation bars
-      const ua=(upV/nav*100).toFixed(1), va=(vuV/nav*100).toFixed(1);
-      setEl('alloc-upro-val','$'+upV.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','));
-      setEl('alloc-vuaa-val','$'+vuV.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','));
-      setEl('alloc-upro-pct',ua+'%'); setEl('alloc-vuaa-pct',va+'%');
-      const ub=document.getElementById('alloc-upro-bar'), vb=document.getElementById('alloc-vuaa-bar');
-      if(ub) ub.style.width=ua+'%'; if(vb) vb.style.width=va+'%';
-      setEl('alloc-total-nav','$'+nav.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','));
-      setEl('alloc-stocks','$'+stocks.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','));
+    // Floating P&L
+    setEl('float-pnl-total', fmt(d.total_pnl));   setEl('float-pnl-pct', fmtP(d.total_pnl_pct));
+    setEl('float-upro', fmt(d.upro_pnl)+' ('+fmtP(d.upro_pnl_pct)+')');
+    setEl('float-vuaa', fmt(d.vuaa_pnl)+' ('+fmtP(d.vuaa_pnl_pct)+')');
+    setEl('float-upro-price', '$'+d.upro_price.toFixed(2));
+    setEl('float-vuaa-price', '$'+d.vuaa_price.toFixed(2));
+    setEl('float-vs-yr1', fmt(d.vs_yr1)+' vs Year 1 snapshot');
+    const ft=document.getElementById('float-pnl-total');
+    if(ft) ft.className='pnl-headline '+(d.total_pnl>=0?'col-green':'col-red');
+    setCol('float-upro',d.upro_pnl); setCol('float-vuaa',d.vuaa_pnl); setCol('float-vs-yr1',d.vs_yr1);
 
-      // Floating P&L
-      setEl('float-pnl-total',fmt(totPnl)); setEl('float-pnl-pct',fmtP(totPct));
-      setEl('float-upro',fmt(upPnl)+' ('+fmtP(upPct)+')');
-      setEl('float-vuaa',fmt(vuPnl)+' ('+fmtP(vuPct)+')');
-      setEl('float-upro-price','$'+up.toFixed(2)); setEl('float-vuaa-price','$'+vu.toFixed(2));
-      const vs1=totPnl-YEAR1_SNAPSHOT_PNL;
-      setEl('float-vs-yr1',fmt(vs1)+' vs Year 1 snapshot');
-      const ft=document.getElementById('float-pnl-total');
-      if(ft) ft.className='pnl-headline '+(totPnl>=0?'col-green':'col-red');
-      setCol('float-upro',upPnl); setCol('float-vuaa',vuPnl); setCol('float-vs-yr1',vs1);
+    // Trade ledger rows — colour prices and P&L relative to live prices
+    const UPRO_COST_BASIS = 13912.34;
+    document.querySelectorAll('[data-trade]').forEach(row => {
+      const sym=row.dataset.trade, price=parseFloat(row.dataset.price),
+            qty=parseInt(row.dataset.qty), comm=parseFloat(row.dataset.comm);
+      const cur = sym==='UPRO' ? d.upro_price : d.vuaa_price;
+      const unr=(cur-price)*qty-Math.abs(comm), pct=unr/(price*qty+Math.abs(comm))*100;
+      const sign=unr>=0?'+':'', cls=unr>=0?'col-green':'col-red';
+      const pc=row.querySelector('.trade-price'), pl=row.querySelector('.trade-pnl'), pp=row.querySelector('.trade-pct');
+      if(pc) pc.className='trade-price '+(price<cur?'col-green':'col-red');
+      if(pl){ pl.textContent=sign+'$'+Math.abs(unr).toFixed(2); pl.className='trade-pnl '+cls; }
+      if(pp){ pp.textContent=(pct>=0?'+':'')+pct.toFixed(2)+'%'; pp.className='trade-pct '+cls; }
+    });
 
-      // Trade ledger rows
-      document.querySelectorAll('[data-trade]').forEach(row => {
-        const sym=row.dataset.trade, price=parseFloat(row.dataset.price),
-              qty=parseInt(row.dataset.qty), comm=parseFloat(row.dataset.comm);
-        const cur=sym==='UPRO'?up:vu;
-        const unr=(cur-price)*qty-Math.abs(comm), pct=unr/(price*qty+Math.abs(comm))*100;
-        const sign=unr>=0?'+':'', cls=unr>=0?'col-green':'col-red';
-        const pc=row.querySelector('.trade-price'), pl=row.querySelector('.trade-pnl'), pp=row.querySelector('.trade-pct');
-        if(pc) pc.className='trade-price '+(price<cur?'col-green':'col-red');
-        if(pl){ pl.textContent=sign+'$'+Math.abs(unr).toFixed(2); pl.className='trade-pnl '+cls; }
-        if(pp){ pp.textContent=(pct>=0?'+':'')+pct.toFixed(2)+'%'; pp.className='trade-pct '+cls; }
-      });
-
-      // Performance chart — update last point for all 3 series
-      if(window.twrrChartInstance){
-        window.twrrChartInstance.data.datasets[0].data[13]=+((up/93.15-1)*100).toFixed(2);
-        window.twrrChartInstance.data.datasets[1].data[13]=+((vu/114.36-1)*100).toFixed(2);
-        window.twrrChartInstance.data.datasets[2].data[13]=+((spxLive/6039-1)*100).toFixed(2);
-        window.twrrChartInstance.update();
-      }
-
-      // Timestamp
-      const ts=new Date().toLocaleTimeString('en-SG',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-      setEl('last-fetched','⟳ Live · Updated '+ts);
-      document.getElementById('last-fetched').style.color='#4ade80';
-    } catch(err) {
-      console.error('Price fetch failed:',err);
-      setEl('last-fetched','⚠ Price fetch failed — using last known data');
-      document.getElementById('last-fetched').style.color='#f87171';
-    } finally {
-      if(btn){ btn.disabled=false; icon.textContent='↻'; }
+    // Performance chart — update last data point
+    if(window.twrrChartInstance){
+      window.twrrChartInstance.data.datasets[0].data[13]=+((d.upro_price/93.15-1)*100).toFixed(2);
+      window.twrrChartInstance.data.datasets[1].data[13]=+((d.vuaa_price/114.36-1)*100).toFixed(2);
+      window.twrrChartInstance.data.datasets[2].data[13]=+((d.spx_price/6039-1)*100).toFixed(2);
+      window.twrrChartInstance.update();
     }
+
+    // Update last-updated in header
+    setEl('last-fetched', '✓ Prices as of ' + d.last_updated + ' · Auto-updated daily');
+    const lf=document.getElementById('last-fetched'); if(lf) lf.style.color='#4ade80';
   }
 
-  window.addEventListener('load', fetchLivePrices);
+  window.addEventListener('load', initPrices);
+
+
+
+  // ── NAV vs Cumulative Deposits Chart ──────────────────────────────────────
+  const navData = [994.55,1917.23,2377.09,4054.42,5531.01,7029.20,8175.43,9639.58,11277.98,12397.51,13589.81,14671.77,15323.60,15302.93];
+  const depData = [1000,2000,3000,4000,5000,6000,7000,8000,9000,10000,11000,12000,13000,14000];
+
+  new Chart(document.getElementById('navDepositsChart'), {
+    type: 'line',
+    data: {
+      labels: twrrLabels,
+      datasets: [
+        {
+          label: 'NAV (approx)',
+          data: navData,
+          borderColor: '#38bdf8',
+          backgroundColor: 'rgba(56,189,248,0.10)',
+          borderWidth: 2.5,
+          pointRadius: 4,
+          pointBackgroundColor: '#38bdf8',
+          pointBorderColor: '#020817',
+          pointBorderWidth: 1.5,
+          pointHoverRadius: 7,
+          tension: 0.35,
+          fill: '+1',
+          order: 1,
+        },
+        {
+          label: 'Cumulative Deposits',
+          data: depData,
+          borderColor: 'rgba(148,163,184,0.55)',
+          backgroundColor: 'rgba(15,23,42,0.0)',
+          borderWidth: 2,
+          borderDash: [5,4],
+          pointRadius: 2.5,
+          pointBackgroundColor: 'rgba(148,163,184,0.5)',
+          pointHoverRadius: 5,
+          tension: 0.35,
+          fill: false,
+          order: 2,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: 'rgba(6,13,26,0.96)',
+          borderColor: 'rgba(255,255,255,0.1)',
+          borderWidth: 1,
+          padding: 12,
+          titleColor: '#e2e8f0',
+          bodyColor: '#94a3b8',
+          callbacks: {
+            label: ctx => {
+              const v = '$' + ctx.raw.toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 });
+              return ' ' + ctx.dataset.label + ': ' + v;
+            },
+            afterBody: items => {
+              const nav = items.find(i => i.dataset.label === 'NAV (approx)');
+              const dep = items.find(i => i.dataset.label === 'Cumulative Deposits');
+              if (nav && dep) {
+                const spread = nav.raw - dep.raw;
+                const sign = spread >= 0 ? '+' : '';
+                const col  = spread >= 0 ? '▲' : '▼';
+                return [' ' + col + ' Spread: ' + sign + '$' + Math.abs(spread).toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 })];
+              }
+              return [];
+            }
+          }
+        }
+      },
+      scales: {
+        x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#475569' } },
+        y: {
+          grid: { color: 'rgba(255,255,255,0.04)' },
+          ticks: {
+            color: '#475569',
+            callback: v => '$' + (v >= 1000 ? (v/1000).toFixed(0) + 'k' : v)
+          },
+          beginAtZero: true
+        }
+      }
+    }
+  });
 
 </script>
 </body>
